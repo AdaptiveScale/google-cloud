@@ -48,6 +48,7 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   public static final String NAME_DATASET_PROJECT = "datasetProject";
   public static final String NAME_PARTITION_FROM = "partitionFrom";
   public static final String NAME_PARTITION_TO = "partitionTo";
+  public static final String NAME_FILTER = "filter";
 
   @Name(NAME_DATASET)
   @Macro
@@ -99,6 +100,12 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   @Description("It's inclusive partition end date. It should be a String with format \"yyyy-MM-dd\". " +
     "This value is ignored if the table does not support partitioning.")
   private String partitionTo;
+
+  @Name(NAME_FILTER)
+  @Macro
+  @Nullable
+  @Description("Filter Add description")
+  private String filter;
 
   public String getDataset() {
     return dataset;
@@ -169,6 +176,16 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   @Nullable
   public String getPartitionTo() {
     return Strings.isNullOrEmpty(partitionTo) ? null : partitionTo;
+  }
+
+  @Nullable
+  public String getFilter() {
+    return Strings.isNullOrEmpty(filter) ? null : filter;
+  }
+
+  @Nullable
+  public void setFilter(final String filter) {
+    this.filter = filter;
   }
 
   /**
