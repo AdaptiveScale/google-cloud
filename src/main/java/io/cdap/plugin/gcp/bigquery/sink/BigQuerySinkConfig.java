@@ -123,7 +123,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   @Name(PARTITION_FILETER)
   @Macro
   @Nullable
-  @Description("")
+  @Description("Partition filter that can be used for partition elimination during Update operation.")
   protected String partitionFilter;
 
   public BigQuerySinkConfig(String referenceName, String dataset, String table,
