@@ -56,6 +56,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   public static final String NAME_PARTITION_BY_FIELD = "partitionByField";
   public static final String NAME_CLUSTERING_ORDER = "clusteringOrder";
   public static final String NAME_OPERATION = "operation";
+  public static final String PARTITION_FILETER = "partitionFileter";
 
   public static final int MAX_NUMBER_OF_COLUMNS = 4;
 
@@ -119,6 +120,12 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     "only used when the BigQuery table is automatically created and ignored if the table already exists.")
   protected String clusteringOrder;
 
+  @Name(PARTITION_FILETER)
+  @Macro
+  @Nullable
+  @Description("")
+  protected String partitionFilter;
+
   public BigQuerySinkConfig(String referenceName, String dataset, String table,
                             @Nullable String bucket, @Nullable String schema) {
     this.referenceName = referenceName;
@@ -162,6 +169,11 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   @Nullable
   public String getDedupeBy() {
     return Strings.isNullOrEmpty(dedupeBy) ? null : dedupeBy;
+  }
+
+  @Nullable
+  public String getPartitionFilter() {
+    return Strings.isNullOrEmpty(partitionFilter) ? null : partitionFilter;
   }
 
   /**

@@ -115,6 +115,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
     private List<String> tableKeyList;
     private List<String> orderedByList;
     private List<String> tableFieldsList;
+    private String partitionFilter;
 
     private boolean allowSchemaRelaxation;
 
@@ -166,6 +167,8 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       String tableFields = conf.get(BigQueryConstants.CONFIG_TABLE_FIELDS, null);
       tableFieldsList = Arrays.stream(tableFields != null ? tableFields.split(",") : new String[0])
         .map(String::trim).collect(Collectors.toList());
+      partitionFilter = conf.get(BigQueryConstants.CONFIG_PARTITION_FILTER, null);
+      LOG.debug("Partition filter: '{}'", partitionFilter);
       boolean tableExists = conf.getBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, false);
 
       try {
