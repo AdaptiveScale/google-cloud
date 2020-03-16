@@ -56,7 +56,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   public static final String NAME_PARTITION_BY_FIELD = "partitionByField";
   public static final String NAME_CLUSTERING_ORDER = "clusteringOrder";
   public static final String NAME_OPERATION = "operation";
-  public static final String PARTITION_FILETER = "partitionFileter";
+  public static final String PARTITION_FILTER = "partitionFilter";
 
   public static final int MAX_NUMBER_OF_COLUMNS = 4;
 
@@ -120,7 +120,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     "only used when the BigQuery table is automatically created and ignored if the table already exists.")
   protected String clusteringOrder;
 
-  @Name(PARTITION_FILETER)
+  @Name(PARTITION_FILTER)
   @Macro
   @Nullable
   @Description("Partition filter that can be used for partition elimination during Update operation.")
