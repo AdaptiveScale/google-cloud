@@ -45,6 +45,9 @@ If no value is given, all partitions up to the partition end date will be read.
 **Partition End Date**: Exclusive partition end date, specified as 'yyyy-MM-dd'. For example, '2019-01-01'. 
 If no value is given, all partitions up from the partition start date will be read.
 
+**Filter**: The WHERE clause filters out rows by evaluating each row against bool_expression,
+and discards all rows that do not return TRUE (that is, rows that return FALSE or NULL).
+
 **Temporary Bucket Name**: Google Cloud Storage bucket to store temporary data in.
 It will be automatically created if it does not exist, but will not be automatically deleted.
 Temporary data will be deleted after it has been read. If it is not provided, a unique bucket will be

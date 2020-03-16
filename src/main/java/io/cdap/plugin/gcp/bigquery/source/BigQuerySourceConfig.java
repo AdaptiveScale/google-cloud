@@ -104,7 +104,8 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   @Name(NAME_FILTER)
   @Macro
   @Nullable
-  @Description("Filter Add description")
+  @Description("The WHERE clause filters out rows by evaluating each row against bool_expression, " +
+    "and discards all rows that do not return TRUE (that is, rows that return FALSE or NULL).")
   private String filter;
 
   public String getDataset() {

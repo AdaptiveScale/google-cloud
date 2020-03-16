@@ -86,7 +86,7 @@
           "label": "Filter",
           "name": "filter",
           "widget-attributes" : {
-            "placeholder": "Filter"
+            "placeholder": "WHERE clause"
           }
         },
         {
