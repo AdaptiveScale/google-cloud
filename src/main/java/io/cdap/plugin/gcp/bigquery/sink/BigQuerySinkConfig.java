@@ -46,6 +46,7 @@ import javax.annotation.Nullable;
  */
 public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   private static final Logger LOG = LoggerFactory.getLogger(BigQuerySinkConfig.class);
+  private static final String WHERE = "WHERE";
   public static final Set<Schema.Type> SUPPORTED_CLUSTERING_TYPES =
     ImmutableSet.of(Schema.Type.INT, Schema.Type.LONG, Schema.Type.STRING, Schema.Type.BOOLEAN, Schema.Type.BYTES);
 
@@ -173,7 +174,17 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
 
   @Nullable
   public String getPartitionFilter() {
-    return Strings.isNullOrEmpty(partitionFilter) ? null : partitionFilter;
+    if (partitionFilter != null) {
+      partitionFilter = partitionFilter.trim();
+      if (partitionFilter.isEmpty()) {
+        return null;
+      }
+      // remove the WHERE from the filter
+      if (partitionFilter.toUpperCase().startsWith(WHERE)) {
+        partitionFilter = partitionFilter.replace(WHERE, "");
+      }
+    }
+    return partitionFilter;
   }
 
   /**

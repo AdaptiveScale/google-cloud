@@ -37,6 +37,7 @@ import javax.annotation.Nullable;
  */
 public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   private static final String SCHEME = "gs://";
+  private static final String WHERE = "WHERE";
   public static final Set<Schema.Type> SUPPORTED_TYPES =
     ImmutableSet.of(Schema.Type.LONG, Schema.Type.STRING, Schema.Type.DOUBLE, Schema.Type.BOOLEAN, Schema.Type.BYTES,
                     Schema.Type.ARRAY, Schema.Type.RECORD);
@@ -181,7 +182,17 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
 
   @Nullable
   public String getFilter() {
-    return Strings.isNullOrEmpty(filter) ? null : filter;
+    if (filter != null) {
+      filter = filter.trim();
+      if (filter.isEmpty()) {
+        return null;
+      }
+      // remove the WHERE from the filter
+      if (filter.toUpperCase().startsWith(WHERE)) {
+        filter = filter.replace(WHERE, "");
+      }
+    }
+    return filter;
   }
 
   @Nullable
