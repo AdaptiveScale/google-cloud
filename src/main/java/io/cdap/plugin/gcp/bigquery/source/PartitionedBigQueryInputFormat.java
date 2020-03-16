@@ -111,7 +111,7 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
 
   private String generateQuery(String partitionFromDate, String partitionToDate, String filter,
                                String project, String dataset, String table, @Nullable String serviceFilePath) {
-    if (partitionFromDate == null && partitionToDate == null) {
+    if (partitionFromDate == null && partitionToDate == null && filter == null) {
       return null;
     }
     String queryTemplate = "select * from %s where %s";
