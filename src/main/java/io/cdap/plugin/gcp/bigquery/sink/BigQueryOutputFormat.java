@@ -463,7 +463,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       String fieldsForUpdate = tableFieldsList.stream().filter(s -> !tableKeyList.contains(s))
         .map(s -> String.format(criteriaTemplate, s, s)).collect(Collectors.joining(", "));
       String orderedBy = orderedByList.isEmpty() ? "" : " ORDER BY " + String.join(", ", orderedByList);
-      String partitionCriteria = partitionFilter != null ? " WHERE %s".format(partitionFilter) : "";
+      String partitionCriteria = partitionFilter != null ? String.format(" WHERE %s", partitionFilter) : "";
       String sourceTable = String.format(SOURCE_DATA_QUERY, String.join(", ", tableKeyList), orderedBy,
                                          temporaryTableReference.getDatasetId() + "." +
                                            temporaryTableReference.getTableId(), partitionCriteria);
