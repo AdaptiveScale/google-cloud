@@ -180,20 +180,20 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
     return Strings.isNullOrEmpty(partitionTo) ? null : partitionTo;
   }
 
-  @Nullable
-  public String getFilter() {
+    @Nullable
+    public String getFilter() {
     if (filter != null) {
-      filter = filter.trim();
-      if (filter.isEmpty()) {
-        return null;
-      }
-      // remove the WHERE from the filter
-      if (filter.toUpperCase().startsWith(WHERE)) {
-        filter = filter.replace(WHERE, "");
-      }
+        filter = filter.trim();
+        if (filter.isEmpty()) {
+            return null;
+        }
+        // remove the WHERE keyword from the filter if the user adds it at the begging of the expression
+        if (filter.toUpperCase().startsWith(WHERE)) {
+            filter = filter.substring(WHERE.length());
+        }
     }
     return filter;
-  }
+    }
 
   @Nullable
   public void setFilter(final String filter) {

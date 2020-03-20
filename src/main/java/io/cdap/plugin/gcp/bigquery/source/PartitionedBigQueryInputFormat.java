@@ -116,7 +116,7 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     }
     String queryTemplate = "select * from %s where %s";
     com.google.cloud.bigquery.Table sourceTable = BigQueryUtil.getBigQueryTable(project, dataset, table,
-                                                                                serviceFilePath);
+            serviceFilePath);
     StandardTableDefinition tableDefinition = Objects.requireNonNull(sourceTable).getDefinition();
     TimePartitioning timePartitioning = tableDefinition.getTimePartitioning();
     if (timePartitioning == null && filter == null) {
@@ -125,32 +125,9 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     StringBuilder condition = new StringBuilder();
 
     if (timePartitioning != null) {
-      String columnName = timePartitioning.getField() != null ? timePartitioning.getField() : DEFAULT_COLUMN_NAME;
-
-      LegacySQLTypeName columnType = null;
-      if (!DEFAULT_COLUMN_NAME.equals(columnName)) {
-        columnType = tableDefinition.getSchema().getFields().get(columnName).getType();
-      }
-
-      if (partitionFromDate != null) {
-        if (LegacySQLTypeName.DATE.equals(columnType)) {
-          condition.append("TIMESTAMP(").append(columnName).append(")");
-        } else {
-          condition.append(columnName);
-        }
-        condition.append(" >= ").append("TIMESTAMP(\"").append(partitionFromDate).append("\")");
-      }
-      if (partitionFromDate != null && partitionToDate != null) {
-        condition.append(" and ");
-      }
-      if (partitionToDate != null) {
-        if (LegacySQLTypeName.DATE.equals(columnType)) {
-          condition.append("TIMESTAMP(").append(columnName).append(")");
-        } else {
-          condition.append(columnName);
-        }
-        condition.append(" < ").append("TIMESTAMP(\"").append(partitionToDate).append("\")");
-      }
+      String timePartitionCondition = generateTimePartitionCondition(tableDefinition, timePartitioning,
+              partitionFromDate, partitionToDate);
+      condition.append(timePartitionCondition);
     }
 
     if (filter != null) {
@@ -213,5 +190,36 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
       bigQueryHelper.getRawBigquery().tables().update(tableRef.getProjectId(), tableRef.getDatasetId(),
                                                       tableRef.getTableId(), table).execute();
     }
+  }
+
+  private String generateTimePartitionCondition(StandardTableDefinition tableDefinition,
+                                                TimePartitioning timePartitioning, String partitionFromDate,
+                                                String partitionToDate) {
+    StringBuilder timePartitionCondition = new StringBuilder();
+    String columnName = timePartitioning.getField() != null ? timePartitioning.getField() : DEFAULT_COLUMN_NAME;
+
+    LegacySQLTypeName columnType = null;
+    if (!DEFAULT_COLUMN_NAME.equals(columnName)) {
+      columnType = tableDefinition.getSchema().getFields().get(columnName).getType();
+    }
+
+    if (partitionFromDate != null) {
+      if (LegacySQLTypeName.DATE.equals(columnType)) {
+        columnName = "TIMESTAMP(\"" + columnName + "\")";
+      }
+      timePartitionCondition.append(columnName).append(" >= ").append("TIMESTAMP(\"")
+              .append(partitionFromDate).append("\")");
+    }
+    if (partitionFromDate != null && partitionToDate != null) {
+      timePartitionCondition.append(" and ");
+    }
+    if (partitionToDate != null) {
+      if (LegacySQLTypeName.DATE.equals(columnType)) {
+        columnName = "TIMESTAMP(\"" + columnName + "\")";
+      }
+      timePartitionCondition.append(columnName).append(" < ").append("TIMESTAMP(\"")
+              .append(partitionToDate).append("\")");
+    }
+    return timePartitionCondition.toString();
   }
 }
