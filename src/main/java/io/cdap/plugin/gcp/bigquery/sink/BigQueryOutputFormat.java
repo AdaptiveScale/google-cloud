@@ -92,10 +92,13 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryOutputFormat.class);
 
   private static final String SOURCE_DATA_QUERY = "(SELECT * FROM (SELECT row_number() OVER (PARTITION BY %s%s) " +
-    "as rowid, * FROM %s %s) where rowid = 1)";
+          "as rowid, * FROM %s) where rowid = 1)";
   private static final String UPDATE_QUERY = "UPDATE %s T SET %s FROM %s S WHERE %s";
   private static final String UPSERT_QUERY = "MERGE %s T USING %s S ON %s WHEN MATCHED THEN UPDATE SET %s " +
-    "WHEN NOT MATCHED THEN INSERT (%s) VALUES(%s)";
+          "WHEN NOT MATCHED THEN INSERT (%s) VALUES(%s)";
+  private static final List<String> COMPARISON_OPERATORS = Arrays.asList("=", "<", ">", "<=", ">=", "!=", "<>",
+          "LIKE", "NOT LIKE", "BETWEEN", "NOT BETWEEN", "IN", "NOT IN", "IS NULL", "IS NOT NULL",
+          "IS TRUE", "IS NOT TRUE", "IS FALSE", "IS NOT FALSE");
 
   @Override
   public OutputCommitter createCommitter(TaskAttemptContext context) throws IOException {
@@ -156,25 +159,25 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       operation = Operation.valueOf(conf.get(BigQueryConstants.CONFIG_OPERATION));
       String clusteringOrder = conf.get(BigQueryConstants.CONFIG_CLUSTERING_ORDER, null);
       List<String> clusteringOrderList = Arrays.stream(
-        clusteringOrder != null ? clusteringOrder.split(",") : new String[0]).map(String::trim)
-        .collect(Collectors.toList());
+              clusteringOrder != null ? clusteringOrder.split(",") : new String[0]).map(String::trim)
+              .collect(Collectors.toList());
       String tableKey = conf.get(BigQueryConstants.CONFIG_TABLE_KEY, null);
       tableKeyList = Arrays.stream(tableKey != null ? tableKey.split(",") : new String[0]).map(String::trim)
-        .collect(Collectors.toList());
+              .collect(Collectors.toList());
       String dedupedBy = conf.get(BigQueryConstants.CONFIG_DEDUPE_BY, null);
       orderedByList = Arrays.stream(dedupedBy != null ? dedupedBy.split(",") : new String[0])
-        .collect(Collectors.toList());
+              .collect(Collectors.toList());
       String tableFields = conf.get(BigQueryConstants.CONFIG_TABLE_FIELDS, null);
       tableFieldsList = Arrays.stream(tableFields != null ? tableFields.split(",") : new String[0])
-        .map(String::trim).collect(Collectors.toList());
+              .map(String::trim).collect(Collectors.toList());
       partitionFilter = conf.get(BigQueryConstants.CONFIG_PARTITION_FILTER, null);
       LOG.debug("Partition filter: '{}'", partitionFilter);
       boolean tableExists = conf.getBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, false);
 
       try {
         importFromGcs(destProjectId, destTable, destSchema.orElse(null), kmsKeyName, outputFileFormat,
-                      writeDisposition, sourceUris, createPartitionedTable, partitionByField,
-                      requirePartitionFilter, clusteringOrderList, tableExists);
+                writeDisposition, sourceUris, createPartitionedTable, partitionByField,
+                requirePartitionFilter, clusteringOrderList, tableExists);
         if (temporaryTableReference != null) {
           operationAction(destTable, kmsKeyName);
         }
@@ -200,10 +203,10 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
                                List<String> gcsPaths, boolean createPartitionedTable,
                                @Nullable String partitionByField, boolean requirePartitionFilter,
                                List<String> clusteringOrderList, boolean tableExists)
-      throws IOException, InterruptedException {
+            throws IOException, InterruptedException {
       LOG.info("Importing into table '{}' from {} paths; path[0] is '{}'; awaitCompletion: {}",
-               BigQueryStrings.toString(tableRef), gcsPaths.size(), gcsPaths.isEmpty() ? "(empty)" : gcsPaths.get(0),
-               true);
+              BigQueryStrings.toString(tableRef), gcsPaths.size(), gcsPaths.isEmpty() ? "(empty)" : gcsPaths.get(0),
+              true);
 
       if (gcsPaths.isEmpty()) {
         if (!bigQueryHelper.tableExists(tableRef)) {
@@ -212,7 +215,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
           table.setSchema(schema);
           table.setTableReference(tableRef);
           bigQueryHelper.getRawBigquery().tables().insert(tableRef.getProjectId(), tableRef.getDatasetId(), table)
-            .execute();
+                  .execute();
         }
         return;
       }
@@ -241,19 +244,19 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       temporaryTableReference = null;
       if (tableExists && !isTableEmpty(tableRef) && !Operation.INSERT.equals(operation)) {
         String temporaryTableName = tableRef.getTableId() + "_"
-          + UUID.randomUUID().toString().replaceAll("-", "_");
+                + UUID.randomUUID().toString().replaceAll("-", "_");
         temporaryTableReference = new TableReference()
-          .setDatasetId(tableRef.getDatasetId())
-          .setProjectId(tableRef.getProjectId())
-          .setTableId(temporaryTableName);
+                .setDatasetId(tableRef.getDatasetId())
+                .setProjectId(tableRef.getProjectId())
+                .setTableId(temporaryTableName);
         loadConfig.setDestinationTable(temporaryTableReference);
       } else {
         loadConfig.setDestinationTable(tableRef);
 
         if (allowSchemaRelaxation) {
           loadConfig.setSchemaUpdateOptions(Arrays.asList(
-            JobInfo.SchemaUpdateOption.ALLOW_FIELD_ADDITION.name(),
-            JobInfo.SchemaUpdateOption.ALLOW_FIELD_RELAXATION.name()));
+                  JobInfo.SchemaUpdateOption.ALLOW_FIELD_ADDITION.name(),
+                  JobInfo.SchemaUpdateOption.ALLOW_FIELD_RELAXATION.name()));
         }
       }
 
@@ -274,10 +277,10 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
 
       // Get the dataset to determine the location
       Dataset dataset =
-        bigQueryHelper.getRawBigquery().datasets().get(tableRef.getProjectId(), tableRef.getDatasetId()).execute();
+          bigQueryHelper.getRawBigquery().datasets().get(tableRef.getProjectId(), tableRef.getDatasetId()).execute();
 
       JobReference jobReference =
-        bigQueryHelper.createJobReference(projectId, "direct-bigqueryhelper-import", dataset.getLocation());
+          bigQueryHelper.createJobReference(projectId, "direct-bigqueryhelper-import", dataset.getLocation());
       Job job = new Job();
       job.setConfiguration(config);
       job.setJobReference(jobReference);
@@ -292,8 +295,8 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
         long expirationMillis = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(1);
         Table table = bigQueryHelper.getTable(temporaryTableReference).setExpirationTime(expirationMillis);
         bigQueryHelper.getRawBigquery().tables().update(temporaryTableReference.getProjectId(),
-                                                        temporaryTableReference.getDatasetId(),
-                                                        temporaryTableReference.getTableId(), table).execute();
+                temporaryTableReference.getDatasetId(),
+                temporaryTableReference.getTableId(), table).execute();
       }
     }
 
@@ -305,11 +308,11 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
 
       Sleeper sleeper = Sleeper.DEFAULT;
       BackOff pollBackOff =
-        new ExponentialBackOff.Builder()
-          .setMaxIntervalMillis(BigQueryUtils.POLL_WAIT_INTERVAL_MAX_MILLIS)
-          .setInitialIntervalMillis(BigQueryUtils.POLL_WAIT_INITIAL_MILLIS)
-          .setMaxElapsedTimeMillis(BigQueryUtils.POLL_WAIT_MAX_ELAPSED_MILLIS)
-          .build();
+              new ExponentialBackOff.Builder()
+                      .setMaxIntervalMillis(BigQueryUtils.POLL_WAIT_INTERVAL_MAX_MILLIS)
+                      .setInitialIntervalMillis(BigQueryUtils.POLL_WAIT_INITIAL_MILLIS)
+                      .setMaxElapsedTimeMillis(BigQueryUtils.POLL_WAIT_MAX_ELAPSED_MILLIS)
+                      .build();
 
       // Get starting time.
       long startTime = System.currentTimeMillis();
@@ -320,18 +323,18 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       while (notDone) {
         BackOff operationBackOff = new ExponentialBackOff.Builder().build();
         Bigquery.Jobs.Get get = bigquery.jobs().get(projectId, jobReference.getJobId())
-          .setLocation(jobReference.getLocation());
+                .setLocation(jobReference.getLocation());
 
         Job pollJob = ResilientOperation.retry(
-          ResilientOperation.getGoogleRequestCallable(get),
-          operationBackOff,
-          RetryDeterminer.RATE_LIMIT_ERRORS,
-          IOException.class,
-          sleeper);
+                ResilientOperation.getGoogleRequestCallable(get),
+                operationBackOff,
+                RetryDeterminer.RATE_LIMIT_ERRORS,
+                IOException.class,
+                sleeper);
 
         elapsedTime = System.currentTimeMillis() - startTime;
         LOG.debug("Job status ({} ms) {}: {}", elapsedTime, jobReference.getJobId(),
-                  pollJob.getStatus().getState());
+                pollJob.getStatus().getState());
         if (pollJob.getStatus().getState().equals("DONE")) {
           notDone = false;
           if (pollJob.getStatus().getErrorResult() != null) {
@@ -347,18 +350,18 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
             }
             // Only add first error message in the exception. For other errors user should look at BigQuery job logs.
             throw new IOException(String.format("Error occurred while importing data to BigQuery '%s'." +
-                                                  " There are total %s error(s) for BigQuery job %s. Please look at " +
-                                                  "BigQuery job logs for more information.",
-                                                errorMessage, numOfErrors, jobReference.getJobId()));
+                            " There are total %s error(s) for BigQuery job %s. Please look at " +
+                            "BigQuery job logs for more information.",
+                    errorMessage, numOfErrors, jobReference.getJobId()));
           }
         } else {
           long millisToWait = pollBackOff.nextBackOffMillis();
           if (millisToWait == BackOff.STOP) {
             throw new IOException(
-              String.format(
-                "Job %s failed to complete after %s millis.",
-                jobReference.getJobId(),
-                elapsedTime));
+                    String.format(
+                            "Job %s failed to complete after %s millis.",
+                            jobReference.getJobId(),
+                            elapsedTime));
           }
           // Pause execution for the configured duration before polling job status again.
           Thread.sleep(millisToWait);
@@ -376,9 +379,9 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       // Ensure the BigQuery output information is valid.
       String projectId = BigQueryOutputConfiguration.getProjectId(conf);
       String datasetId =
-        ConfigurationUtil.getMandatoryConfig(conf, BigQueryConfiguration.OUTPUT_DATASET_ID_KEY);
+              ConfigurationUtil.getMandatoryConfig(conf, BigQueryConfiguration.OUTPUT_DATASET_ID_KEY);
       String tableId =
-        ConfigurationUtil.getMandatoryConfig(conf, BigQueryConfiguration.OUTPUT_TABLE_ID_KEY);
+              ConfigurationUtil.getMandatoryConfig(conf, BigQueryConfiguration.OUTPUT_TABLE_ID_KEY);
 
       return new TableReference().setProjectId(projectId).setDatasetId(datasetId).setTableId(tableId);
     }
@@ -395,7 +398,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
           return Optional.of(tableSchema);
         } catch (IOException e) {
           throw new IOException(
-            "Unable to parse key '" + BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY + "'.", e);
+                  "Unable to parse key '" + BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY + "'.", e);
         }
       }
       return Optional.empty();
@@ -410,11 +413,11 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
 
       BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
       QueryJobConfiguration queryConfig =
-        QueryJobConfiguration.newBuilder(query)
-          .setUseLegacySql(false)
-          .setDestinationEncryptionConfiguration(
-            com.google.cloud.bigquery.EncryptionConfiguration.newBuilder().setKmsKeyName(cmekKey).build())
-          .build();
+              QueryJobConfiguration.newBuilder(query)
+                      .setUseLegacySql(false)
+                      .setDestinationEncryptionConfiguration(
+                        com.google.cloud.bigquery.EncryptionConfiguration.newBuilder().setKmsKeyName(cmekKey).build())
+                      .build();
 
       JobId jobId = JobId.of(UUID.randomUUID().toString());
       com.google.cloud.bigquery.Job queryJob = bigquery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
@@ -437,18 +440,18 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       tableFieldsList = sourceFields.stream().map(Field::getName).collect(Collectors.toList());
       FieldList destinationFields = destinationTable.getDefinition().getSchema().getFields();
       Map<String, Field> sourceFieldMap = sourceFields.stream()
-        .collect(Collectors.toMap(Field::getName, x -> x));
+              .collect(Collectors.toMap(Field::getName, x -> x));
 
       List<Field> resultFieldsList = destinationFields.stream()
-        .filter(field -> !sourceFieldMap.containsKey(field.getName()))
-        .collect(Collectors.toList());
+              .filter(field -> !sourceFieldMap.containsKey(field.getName()))
+              .collect(Collectors.toList());
       resultFieldsList.addAll(sourceFields);
 
       Schema newSchema = Schema.of(resultFieldsList);
       bigquery.update(
-        destinationTable.toBuilder().setDefinition(
-          destinationTable.getDefinition().toBuilder().setSchema(newSchema).build()
-        ).build()
+              destinationTable.toBuilder().setDefinition(
+                      destinationTable.getDefinition().toBuilder().setSchema(newSchema).build()
+              ).build()
       );
     }
 
@@ -456,24 +459,22 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       String criteriaTemplate = "T.%s = S.%s";
       String destinationTable = tableRef.getDatasetId() + "." + tableRef.getTableId();
       String criteria = tableKeyList.stream().map(s -> String.format(criteriaTemplate, s, s))
-        .collect(Collectors.joining(" AND "));
-      criteria = partitionFilter != null ? String.format("(%s) AND %s", partitionFilter, criteria) : criteria;
+              .collect(Collectors.joining(" AND "));
+      criteria = partitionFilter != null ? String.format("(%s) AND %s",
+              formatPartitionFilter(partitionFilter), criteria) : criteria;
       String fieldsForUpdate = tableFieldsList.stream().filter(s -> !tableKeyList.contains(s))
-        .map(s -> String.format(criteriaTemplate, s, s)).collect(Collectors.joining(", "));
+              .map(s -> String.format(criteriaTemplate, s, s)).collect(Collectors.joining(", "));
       String orderedBy = orderedByList.isEmpty() ? "" : " ORDER BY " + String.join(", ", orderedByList);
-      String partitionCriteria = partitionFilter != null ? String.format(" WHERE %s", partitionFilter) : "";
       String sourceTable = String.format(SOURCE_DATA_QUERY, String.join(", ", tableKeyList), orderedBy,
-                                         temporaryTableReference.getDatasetId() + "." +
-                                           temporaryTableReference.getTableId(), partitionCriteria);
-      LOG.info("SOURCE TABLE: " + sourceTable);
+              temporaryTableReference.getDatasetId() + "." +
+                      temporaryTableReference.getTableId());
       switch (operation) {
         case UPDATE:
-          LOG.info("UPDATE: " + String.format(UPDATE_QUERY, destinationTable, fieldsForUpdate, sourceTable, criteria));
           return String.format(UPDATE_QUERY, destinationTable, fieldsForUpdate, sourceTable, criteria);
         case UPSERT:
           String insertFields = String.join(", ", tableFieldsList);
           return String.format(UPSERT_QUERY, destinationTable, sourceTable, criteria, fieldsForUpdate,
-                                insertFields, insertFields);
+                  insertFields, insertFields);
         default:
           return "";
       }
@@ -489,7 +490,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
     private boolean isTableEmpty(TableReference tableRef) throws IOException {
       Table table = bigQueryHelper.getTable(tableRef);
       return table.getNumRows().compareTo(BigInteger.ZERO) <= 0 && table.getNumBytes() == 0
-        && table.getNumLongTermBytes() == 0;
+              && table.getNumLongTermBytes() == 0;
     }
 
     @Override
@@ -497,11 +498,24 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       super.cleanup(context);
       if (temporaryTableReference != null && bigQueryHelper.tableExists(temporaryTableReference)) {
         bigQueryHelper.getRawBigquery().tables()
-          .delete(temporaryTableReference.getProjectId(),
-                  temporaryTableReference.getDatasetId(),
-                  temporaryTableReference.getTableId())
-          .execute();
+                .delete(temporaryTableReference.getProjectId(),
+                        temporaryTableReference.getDatasetId(),
+                        temporaryTableReference.getTableId())
+                .execute();
       }
+    }
+
+    private static String formatPartitionFilter(String partitionFilter) {
+      String[] queryWords = partitionFilter.split(" ");
+      int index = 0;
+      for (String word: queryWords) {
+        if (COMPARISON_OPERATORS.contains(word.toUpperCase())) {
+          queryWords[index - 1] = queryWords[index - 1].replace(queryWords[index - 1],
+                  "T." + queryWords[index - 1]);
+        }
+        index++;
+      }
+      return String.join(" ", queryWords);
     }
   }
 }
