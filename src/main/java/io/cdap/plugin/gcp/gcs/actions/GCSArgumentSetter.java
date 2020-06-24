@@ -22,10 +22,12 @@ import com.google.cloud.storage.StorageOptions;
 import com.google.common.base.Joiner;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
+import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.StageConfigurer;
@@ -42,11 +44,24 @@ import java.util.Map;
  * This class <code>GCSArgumentSetter</code> get json file configuration from GCS.
  *
  * <p>The plugin provides the ability to map json properties as pipeline arguments name and columns
- * values as pipeline arguments Following is JSON configuration that can be provided. <code> {
- * "arguments" : [ { "name" : "input.path", "value" :"/data/sunny_feeds/master"}, { "name" :
- * "parse.schema", "value" : [ { "name" : "fname" }, { "name" : "age"}, { "name" : "salary"} ] }, {
- * "name" : "directives","value" : [ "parse-as-json body", "columns-replace s/body_//g", "keep
- * f1,f2" ]} ] }
+ * values as pipeline arguments</p>
+ *
+ * <code>
+ *   {
+ *     "arguments" : [
+ *        { "name" : "input.path", "type" : "string", "value" : "/data/sunny_feeds/master"},
+ *        { "name" : "parse.schema, "type" : "schema", "value" : [
+ *             { "name" : "fname", "type" : "string", "nullable" : true },
+ *             { "name" : "age", "type" : "int", "nullable" : true},
+ *             { "name" : "salary", "type" : "float", "nullable" : false}
+ *          ]},
+ *        { "name" : "directives", "type" : "array", "value" : [
+ *             "parse-as-json body",
+ *             "columns-replace s/body_//g",
+ *             "keep f1,f2"
+ *          ]}
+ *     ]
+ *   }
  * </code>
  */
 @Plugin(type = Action.PLUGIN_TYPE)
@@ -117,7 +132,12 @@ public final class GCSArgumentSetter extends Action {
   private static final class Argument {
 
     private String name;
+    private String type;
     private JsonElement value;
+
+    public Argument() {
+      type = "string";
+    }
 
     public String getName() {
       return name;
@@ -131,16 +151,27 @@ public final class GCSArgumentSetter extends Action {
       if (value == null) {
         throw new IllegalArgumentException("Null Argument value for name '" + name + "'");
       }
-
-      if (value.isJsonArray()) {
+      if (type.equalsIgnoreCase("schema")) {
+        return createSchema(value).toString();
+      } else if (type.equalsIgnoreCase("int")) {
+        return Integer.toString(value.getAsInt());
+      } else if (type.equalsIgnoreCase("float")) {
+        return Float.toString(value.getAsFloat());
+      } else if (type.equalsIgnoreCase("double")) {
+        return Double.toString(value.getAsDouble());
+      } else if (type.equalsIgnoreCase("short")) {
+        return Short.toString(value.getAsShort());
+      } else if (type.equalsIgnoreCase("string")) {
+        return value.getAsString();
+      } else if (type.equalsIgnoreCase("char")) {
+        return Character.toString(value.getAsCharacter());
+      } else if (type.equalsIgnoreCase("array")) {
         List<String> values = new ArrayList<>();
         for (JsonElement v : value.getAsJsonArray()) {
           values.add(v.getAsString());
         }
         return Joiner.on(",").join(values);
-      }
-
-      if (value.isJsonObject()) {
+      } else if (type.equalsIgnoreCase("map")) {
         List<String> values = new ArrayList<>();
         for (Map.Entry<String, JsonElement> entry : value.getAsJsonObject().entrySet()) {
           values.add(String.format("%s=%s", entry.getKey(), entry.getValue().getAsString()));
@@ -148,11 +179,49 @@ public final class GCSArgumentSetter extends Action {
         return Joiner.on(";").join(values);
       }
 
-      if (value.isJsonPrimitive()) {
-        return value.getAsString();
+      throw new IllegalArgumentException("Invalid argument value '" + value + "'");
+    }
+
+    private Schema createSchema(JsonElement array) {
+      List<Schema.Field> fields = new ArrayList<>();
+      for (JsonElement field : array.getAsJsonArray()) {
+        Schema.Type type = Schema.Type.STRING;
+
+        JsonObject object = field.getAsJsonObject();
+        String fieldType = object.get("type").getAsString().toLowerCase();
+
+        boolean isNullable = true;
+        if (object.get("nullable") != null) {
+          isNullable = object.get("nullable").getAsBoolean();
+        }
+
+        String name = object.get("name").getAsString();
+
+        if (fieldType.equals("double")) {
+          type = Schema.Type.DOUBLE;
+        } else if (fieldType.equals("float")) {
+          type = Schema.Type.FLOAT;
+        } else if (fieldType.equals("long")) {
+          type = Schema.Type.LONG;
+        } else if (fieldType.equals("int")) {
+          type = Schema.Type.INT;
+        } else if (fieldType.equals("short")) {
+          type = Schema.Type.INT;
+        } else if (fieldType.equals("string")) {
+          type = Schema.Type.STRING;
+        }
+
+        Schema nullable;
+        if (isNullable) {
+          nullable = Schema.nullableOf(Schema.of(type));
+        } else {
+          nullable = Schema.of(type);
+        }
+        Schema.Field fld = Schema.Field.of(name, nullable);
+        fields.add(fld);
       }
 
-      throw new IllegalArgumentException("Invalid argument value '" + value + "'");
+      return Schema.recordOf("record", fields);
     }
   }
 }
