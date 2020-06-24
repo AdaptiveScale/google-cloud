@@ -120,7 +120,7 @@ public final class GCSArgumentSetter extends Action {
     return new String(blob.getContent());
   }
 
-  private final class Configuration {
+  private static final class Configuration {
 
     private List<Argument> arguments;
 
