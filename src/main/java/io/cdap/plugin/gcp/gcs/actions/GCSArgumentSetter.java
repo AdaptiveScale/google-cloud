@@ -135,7 +135,7 @@ public final class GCSArgumentSetter extends Action {
     private String type;
     private JsonElement value;
 
-    public Argument() {
+     Argument() {
       type = "string";
     }
 
