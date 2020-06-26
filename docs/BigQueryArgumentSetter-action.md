@@ -39,7 +39,7 @@ Each record is composed of columns (also called fields).
 Every table is defined by a schema that describes the column names, data types, and other information.
 
 **Argument Selection Conditions**: A set of conditions for identifying the arguments to run a pipeline.
-A particular use case for this would be feed marketing , date 20200427.
+A particular use case for this would be feed=marketing; date=20200427.
 
 **Arguments Columns**:Name of the columns, separated by `,` ,that contains the arguments for this run
 

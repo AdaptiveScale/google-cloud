@@ -79,7 +79,7 @@ public final class BigQueryArgumentSetterConfig extends GCPReferenceSourceConfig
   @Name(NAME_ARGUMENTS_COLUMNS)
   @Macro
   @Description("Name of the columns, separated by `,` ,that contains the arguments for this run."
-      + "A particular use case for this would be feed=marketing;date=20200427.")
+      + "A particular use case for this would be country, device")
   private String argumentsColumns;
 
   public String getDataset() {
