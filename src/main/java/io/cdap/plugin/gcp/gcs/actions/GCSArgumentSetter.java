@@ -170,7 +170,7 @@ public final class GCSArgumentSetter extends Action {
         for (JsonElement v : value.getAsJsonArray()) {
           values.add(v.getAsString());
         }
-        return Joiner.on(",").join(values);
+        return Joiner.on("\n").join(values);
       } else if (type.equalsIgnoreCase("map")) {
         List<String> values = new ArrayList<>();
         for (Map.Entry<String, JsonElement> entry : value.getAsJsonObject().entrySet()) {

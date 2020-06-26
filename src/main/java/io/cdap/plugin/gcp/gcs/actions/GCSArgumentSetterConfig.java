@@ -63,7 +63,7 @@ public final class GCSArgumentSetterConfig extends GCPReferenceSourceConfig {
   }
 
   private boolean canConnect() {
-    return Strings.isNullOrEmpty(getServiceAccountFilePath())
+    return !Strings.isNullOrEmpty(getServiceAccountFilePath())
         && !(containsMacro(NAME_PROJECT) || AUTO_DETECT.equals(project))
         && !containsMacro(NAME_PATH);
   }
