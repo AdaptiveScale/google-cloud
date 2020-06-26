@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.gcs.actions;
 
+import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -46,7 +47,7 @@ public final class GCSArgumentSetterConfig extends GCPReferenceSourceConfig {
       try {
         GCSArgumentSetter.getContent(this);
       } catch (Exception e) {
-        collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_PATH);
+        collector.addFailure("Can not get content from GCP!", null);
       }
     }
   }
@@ -62,8 +63,8 @@ public final class GCSArgumentSetterConfig extends GCPReferenceSourceConfig {
   }
 
   private boolean canConnect() {
-    return !containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH)
-        && !containsMacro(NAME_PROJECT)
+    return Strings.isNullOrEmpty(getServiceAccountFilePath())
+        && !(containsMacro(NAME_PROJECT) || AUTO_DETECT.equals(project))
         && !containsMacro(NAME_PATH);
   }
 
