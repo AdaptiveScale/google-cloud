@@ -88,8 +88,9 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
 
   @Macro
   @Nullable
-  @Description("DEPRECATED!. Whether to create the BigQuery table with time partitioning. This value is ignored if the table " +
-    "already exists. When this is set to false, value of Partitioning type will be used. Use 'Partitioning type' property")
+  @Description("DEPRECATED!. Whether to create the BigQuery table with time partitioning. "
+      + "This value is ignored if the table already exists."
+      + " When this is set to false, value of Partitioning type will be used. Use 'Partitioning type' property")
   protected Boolean createPartitionedTable;
 
   @Name(NAME_PARTITIONING_TYPE)
