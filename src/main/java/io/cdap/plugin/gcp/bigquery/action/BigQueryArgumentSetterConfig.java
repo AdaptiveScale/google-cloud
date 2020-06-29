@@ -43,9 +43,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
-/**
- * Holds configuration required for configuring {@link BigQuerySource}.
- */
+/** Holds configuration required for configuring {@link BigQuerySource}. */
 public final class BigQueryArgumentSetterConfig extends GCPReferenceSourceConfig {
 
   public static final String NAME_DATASET = "dataset";
@@ -64,30 +62,37 @@ public final class BigQueryArgumentSetterConfig extends GCPReferenceSourceConfig
 
   @Name(NAME_TABLE)
   @Macro
-  @Description("The table to read from. A table contains individual records organized in rows. "
-      + "Each record is composed of columns (also called fields). "
-      + "Every table is defined by a schema that describes the column names, data types, and other information.")
+  @Description(
+      "The table to read from. A table contains individual records organized in rows. "
+          + "Each record is composed of columns (also called fields). "
+          + "Every table is defined by a schema that describes the column names, data types, and other information.")
   private String table;
-
 
   @Name(NAME_ARGUMENT_SELECTION_CONDITIONS)
   @Macro
-  @Description("A set of conditions for identifying the arguments to run a pipeline."
-      + "A particular use case for this would be feed=marketing;date=20200427.")
+  @Description(
+      "A set of conditions for identifying the arguments to run a pipeline."
+          + "A particular use case for this would be feed=marketing;date=20200427.")
   private String argumentSelectionConditions;
 
   @Name(NAME_ARGUMENTS_COLUMNS)
   @Macro
-  @Description("Name of the columns, separated by `,` ,that contains the arguments for this run."
-      + "A particular use case for this would be country, device")
+  @Description(
+      "Name of the columns, separated by `,` ,that contains the arguments for this run."
+          + "A particular use case for this would be country, device")
   private String argumentsColumns;
 
-  public BigQueryArgumentSetterConfig(String referenceName,String dataset,String table,String argumentSelectionConditions,String argumentsColumns){
-    this.referenceName=referenceName;
-    this.dataset =dataset;
-    this.table=table;
-    this.argumentSelectionConditions=argumentSelectionConditions;
-    this.argumentsColumns=argumentsColumns;
+  public BigQueryArgumentSetterConfig(
+      String referenceName,
+      String dataset,
+      String table,
+      String argumentSelectionConditions,
+      String argumentsColumns) {
+    this.referenceName = referenceName;
+    this.dataset = dataset;
+    this.table = table;
+    this.argumentSelectionConditions = argumentSelectionConditions;
+    this.argumentsColumns = argumentsColumns;
   }
 
   public String getDataset() {
@@ -121,7 +126,7 @@ public final class BigQueryArgumentSetterConfig extends GCPReferenceSourceConfig
     }
   }
 
-  public void validateProperties(FailureCollector collector){
+  public void validateProperties(FailureCollector collector) {
     if (!containsMacro(NAME_DATASET)) {
       BigQueryUtil.validateDataset(dataset, NAME_DATASET, collector);
     }
@@ -135,9 +140,12 @@ public final class BigQueryArgumentSetterConfig extends GCPReferenceSourceConfig
   }
 
   private boolean canConnect() {
-    return !containsMacro(NAME_DATASET) && !containsMacro(NAME_TABLE) &&
-        !containsMacro(NAME_DATASET_PROJECT) && !containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) &&
-        !containsMacro(NAME_PROJECT) && !containsMacro(NAME_ARGUMENT_SELECTION_CONDITIONS)
+    return !containsMacro(NAME_DATASET)
+        && !containsMacro(NAME_TABLE)
+        && !containsMacro(NAME_DATASET_PROJECT)
+        && !containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH)
+        && !containsMacro(NAME_PROJECT)
+        && !containsMacro(NAME_ARGUMENT_SELECTION_CONDITIONS)
         && !containsMacro(argumentsColumns);
   }
 
@@ -148,7 +156,8 @@ public final class BigQueryArgumentSetterConfig extends GCPReferenceSourceConfig
     }
 
     if (Strings.isNullOrEmpty(argumentSelectionConditions)) {
-      collector.addFailure("Arguments Selection Conditions is empty!",
+      collector.addFailure(
+          "Arguments Selection Conditions is empty!",
           "Arguments Selection condition can not be empty");
       return;
     }
@@ -156,13 +165,12 @@ public final class BigQueryArgumentSetterConfig extends GCPReferenceSourceConfig
     try {
       getArgumentSelectionConditionsMap();
     } catch (Exception e) {
-      collector
-          .addFailure(e.getMessage(), "Invalid key value pair for Argument Selection Conditions");
+      collector.addFailure(
+          e.getMessage(), "Invalid key value pair for Argument Selection Conditions");
     }
   }
 
-  private void validateArgumentsColumns(String argumentsColumns,
-      FailureCollector collector) {
+  private void validateArgumentsColumns(String argumentsColumns, FailureCollector collector) {
     if (containsMacro(NAME_ARGUMENTS_COLUMNS)) {
       return;
     }
@@ -172,15 +180,14 @@ public final class BigQueryArgumentSetterConfig extends GCPReferenceSourceConfig
   }
 
   public QueryJobConfiguration getQueryJobConfiguration() {
-    Table sourceTable = BigQueryUtil
-        .getBigQueryTable(project, dataset, table, serviceFilePath);
+    Table sourceTable = BigQueryUtil.getBigQueryTable(project, dataset, table, serviceFilePath);
 
     StandardTableDefinition tableDefinition = Objects.requireNonNull(sourceTable).getDefinition();
     FieldList fields = Objects.requireNonNull(tableDefinition.getSchema()).getFields();
 
     Map<String, String> argumentConditionMap = getArgumentSelectionConditionsMap();
-    Map<String, Field> argumentConditionFields = extractArgumentsFields(fields,
-        argumentConditionMap);
+    Map<String, Field> argumentConditionFields =
+        extractArgumentsFields(fields, argumentConditionMap);
 
     checkIfArgumentsColumnsExitsInSource(argumentConditionMap, argumentConditionFields);
 
@@ -190,28 +197,31 @@ public final class BigQueryArgumentSetterConfig extends GCPReferenceSourceConfig
     String query = String.format(QUERY_TEMPLATE, selectClause, tableName, whereCondition);
 
     Builder queryJobConfiguration = QueryJobConfiguration.newBuilder(query);
-    getParametersValues(argumentConditionMap.entrySet(), argumentConditionFields).forEach(
-        stringQueryParameterValueSimpleEntry -> queryJobConfiguration
-            .addNamedParameter(stringQueryParameterValueSimpleEntry.getKey(),
-                stringQueryParameterValueSimpleEntry.getValue()));
+    getParametersValues(argumentConditionMap.entrySet(), argumentConditionFields)
+        .forEach(
+            stringQueryParameterValueSimpleEntry ->
+                queryJobConfiguration.addNamedParameter(
+                    stringQueryParameterValueSimpleEntry.getKey(),
+                    stringQueryParameterValueSimpleEntry.getValue()));
 
     return queryJobConfiguration.build();
   }
 
-  private void checkIfArgumentsColumnsExitsInSource(Map<String, String> argumentConditionMap,
-      Map<String, Field> argumentConditionFields) {
+  private void checkIfArgumentsColumnsExitsInSource(
+      Map<String, String> argumentConditionMap, Map<String, Field> argumentConditionFields) {
     if (argumentConditionMap.size() == argumentConditionFields.size()) {
       return;
     }
-    String nonExistingColumnNames = argumentConditionMap.keySet().stream()
-        .filter(columnName -> !argumentConditionFields.containsKey(columnName))
-        .collect(Collectors.joining(" ,"));
+    String nonExistingColumnNames =
+        argumentConditionMap.keySet().stream()
+            .filter(columnName -> !argumentConditionFields.containsKey(columnName))
+            .collect(Collectors.joining(" ,"));
     throw new RuntimeException(
         String.format("Those Columns Name \" %s \"do not exits in Table", nonExistingColumnNames));
   }
 
-  private Map<String, Field> extractArgumentsFields(FieldList fields,
-      Map<String, String> argumentConditionKeyPair) {
+  private Map<String, Field> extractArgumentsFields(
+      FieldList fields, Map<String, String> argumentConditionKeyPair) {
     return fields.stream()
         .filter(field -> argumentConditionKeyPair.containsKey(field.getName()))
         .collect(Collectors.toMap(Field::getName, Function.identity()));
@@ -225,17 +235,21 @@ public final class BigQueryArgumentSetterConfig extends GCPReferenceSourceConfig
       Set<Entry<String, String>> argumentConditionKeyPair,
       Map<String, Field> argumentConditionFields) {
 
-    return argumentConditionKeyPair.stream().map(entry -> {
-      Field field = argumentConditionFields.get(entry.getKey());
-      String value = entry.getValue();
+    return argumentConditionKeyPair.stream()
+        .map(
+            entry -> {
+              Field field = argumentConditionFields.get(entry.getKey());
+              String value = entry.getValue();
 
-      QueryParameterValue build = QueryParameterValue.newBuilder()
-          .setType(field.getType().getStandardType())
-          .setValue(value).build();
+              QueryParameterValue build =
+                  QueryParameterValue.newBuilder()
+                      .setType(field.getType().getStandardType())
+                      .setValue(value)
+                      .build();
 
-      return new SimpleEntry<>(entry.getKey(), build);
-
-    }).collect(Collectors.toList());
+              return new SimpleEntry<>(entry.getKey(), build);
+            })
+        .collect(Collectors.toList());
   }
 
   private String getWhereCondition(Set<String> argumentConditionKey) {
@@ -245,8 +259,7 @@ public final class BigQueryArgumentSetterConfig extends GCPReferenceSourceConfig
   }
 
   private Map<String, String> getArgumentSelectionConditionsMap() {
-    return ConfigUtil
-        .parseKeyValueConfig(argumentSelectionConditions, ";", "=");
+    return ConfigUtil.parseKeyValueConfig(argumentSelectionConditions, ";", "=");
   }
 
   private List<String> getArgumentsColumnsList() {
