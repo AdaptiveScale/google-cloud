@@ -82,6 +82,14 @@ public final class BigQueryArgumentSetterConfig extends GCPReferenceSourceConfig
       + "A particular use case for this would be country, device")
   private String argumentsColumns;
 
+  public BigQueryArgumentSetterConfig(String referenceName,String dataset,String table,String argumentSelectionConditions,String argumentsColumns){
+    this.referenceName=referenceName;
+    this.dataset =dataset;
+    this.table=table;
+    this.argumentSelectionConditions=argumentSelectionConditions;
+    this.argumentsColumns=argumentsColumns;
+  }
+
   public String getDataset() {
     return dataset;
   }
@@ -102,7 +110,18 @@ public final class BigQueryArgumentSetterConfig extends GCPReferenceSourceConfig
   @Override
   public void validate(FailureCollector collector) {
     super.validate(collector);
+    validateProperties(collector);
 
+    if (canConnect()) {
+      try {
+        getQueryJobConfiguration();
+      } catch (Exception e) {
+        collector.addFailure(e.getMessage(), "");
+      }
+    }
+  }
+
+  public void validateProperties(FailureCollector collector){
     if (!containsMacro(NAME_DATASET)) {
       BigQueryUtil.validateDataset(dataset, NAME_DATASET, collector);
     }
@@ -113,14 +132,6 @@ public final class BigQueryArgumentSetterConfig extends GCPReferenceSourceConfig
 
     validateArgumentsSelectionConditions(getArgumentSelectionConditions(), collector);
     validateArgumentsColumns(argumentsColumns, collector);
-
-    if (canConnect()) {
-      try {
-        getQueryJobConfiguration();
-      } catch (Exception e) {
-        collector.addFailure(e.getMessage(), "");
-      }
-    }
   }
 
   private boolean canConnect() {
