@@ -242,7 +242,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
             RangePartitioning rangePartitioning = createRangePartitioning(partitionByField,
                 range);
             if (requirePartitionFilter) {
-              createTableWithRangePartitionAndSetRequirePartitionFilter(tableRef, schema,
+              createTableWithRangePartitionAndRequirePartitionFilter(tableRef, schema,
                   rangePartitioning);
             } else {
               loadConfig.setRangePartitioning(rangePartitioning);
@@ -563,7 +563,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       return timePartitioning;
     }
 
-    private void createTableWithRangePartitionAndSetRequirePartitionFilter(TableReference tableRef,
+    private void createTableWithRangePartitionAndRequirePartitionFilter(TableReference tableRef,
         @Nullable TableSchema schema, RangePartitioning rangePartitioning) throws IOException {
       Table table = new Table();
       table.setSchema(schema);

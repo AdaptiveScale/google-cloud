@@ -62,7 +62,7 @@ public class BigQuerySinkTest {
                                                     Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))));
 
     BigQuerySinkConfig config = new BigQuerySinkConfig("44", "ds", "tb", "bucket",
-        schema.toString(), null, null, null, null);
+        schema.toString(), "INTEGER", 0L, 100L, 10L);
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     config.validate(collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
@@ -74,7 +74,7 @@ public class BigQuerySinkTest {
                                            Schema.Field.of("id", Schema.of(Schema.Type.LONG)));
 
     BigQuerySinkConfig config = new BigQuerySinkConfig("reference!!", "ds", "tb", "buck3t$$",
-        invalidSchema.toString(), null, null, null, null);
+        invalidSchema.toString(), "INTEGER", 0L, 100L, 10L);
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     config.validate(collector);
     List<ValidationFailure> failures = collector.getValidationFailures();
