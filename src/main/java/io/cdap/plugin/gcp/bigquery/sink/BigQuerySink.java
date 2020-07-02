@@ -159,9 +159,21 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     if (config.getPartitionFilter() != null) {
       baseConfiguration.set(BigQueryConstants.CONFIG_PARTITION_FILTER, getConfig().getPartitionFilter());
     }
+
     PartitionType partitioningType = getConfig().getPartitioningType();
     baseConfiguration.setEnum(BigQueryConstants.CONFIG_PARTITION_TYPE, partitioningType);
 
+    if (config.getRangeStart() != null) {
+      baseConfiguration.setLong(BigQueryConstants.CONFIG_PARTITION_INTEGER_RANGE_START,config.getRangeStart());
+    }
+
+    if (config.getRangeEnd() != null) {
+      baseConfiguration.setLong(BigQueryConstants.CONFIG_PARTITION_INTEGER_RANGE_END,config.getRangeEnd());
+    }
+
+    if (config.getRangeInterval() != null) {
+      baseConfiguration.setLong(BigQueryConstants.CONFIG_PARTITION_INTEGER_RANGE_INTERVAL,config.getRangeEnd());
+    }
   }
 
   /**
