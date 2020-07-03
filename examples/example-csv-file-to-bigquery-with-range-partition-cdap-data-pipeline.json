@@ -1,7 +1,7 @@
 {
     "artifact": {
         "name": "cdap-data-pipeline",
-        "version": "6.1.2",
+        "version": "6.2.0",
         "scope": "SYSTEM"
     },
     "description": "Data Pipeline Application",
@@ -18,7 +18,7 @@
         "connections": [
             {
                 "from": "File",
-                "to": "BigQuery2"
+                "to": "BigQuery"
             }
         ],
         "comments": [],
@@ -35,8 +35,8 @@
                     "label": "File",
                     "artifact": {
                         "name": "core-plugins",
-                        "version": "2.3.5",
-                        "scope": "SYSTEM"
+                        "version": "2.5.0-SNAPSHOT",
+                        "scope": "USER"
                     },
                     "properties": {
                         "format": "delimited",
@@ -50,14 +50,19 @@
                         "path": "${path_to_csv_example}"
                     }
                 },
-                "outputSchema": "${out_schema}"
+                "outputSchema": [
+                    {
+                        "name": "etlSchemaBody",
+                        "schema": "${out_schema}"
+                    }
+                ]
             },
             {
-                "name": "BigQuery2",
+                "name": "BigQuery",
                 "plugin": {
                     "name": "BigQueryTable",
                     "type": "batchsink",
-                    "label": "BigQuery2",
+                    "label": "BigQuery",
                     "artifact": {
                         "name": "google-cloud",
                         "version": "0.14.5",
@@ -74,18 +79,24 @@
                         "partitioningType": "INTEGER",
                         "rangeStart": "${range_start}",
                         "partitionFilterRequired": "false",
-                        "referenceName": "BigQuerySink",
                         "dataset": "${bqsink_dataset}",
                         "table": "${bqsink_table}",
+                        "referenceName": "BigQuerySink",
                         "partitionByField": "${partitionfield}",
-                        "rangeInterval": "${range_interval}",
-                        "rangeEnd": "${range_end}"
+                        "rangeEnd": "${range_end}",
+                        "rangeInterval": "${range_interval}"
                     }
                 },
+                "outputSchema": [
+                    {
+                        "name": "etlSchemaBody",
+                        "schema": ""
+                    }
+                ],
                 "inputSchema": [
                     {
                         "name": "File",
-                        "schema": ""
+                        "schema": "${out_schema}"
                     }
                 ]
             }
