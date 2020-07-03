@@ -17,6 +17,8 @@
 package io.cdap.plugin.gcp.bigquery.source;
 
 import com.google.cloud.ServiceOptions;
+import com.google.cloud.bigquery.Table;
+import com.google.cloud.bigquery.TableDefinition.Type;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.annotation.Description;
@@ -50,6 +52,10 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   public static final String NAME_PARTITION_FROM = "partitionFrom";
   public static final String NAME_PARTITION_TO = "partitionTo";
   public static final String NAME_FILTER = "filter";
+  public static final String NAME_ENABLE_QUERYING_VIEWS = "enableQueryingViews";
+  public static final String NAME_VIEW_MATERIALIZATION_PROJECT = "viewMaterializationProject";
+  public static final String NAME_VIEW_MATERIALIZATION_DATASET = "viewMaterializationDataset";
+  public static final String NAME_STAGING_TABLE_NAME = "stagingTableName";
 
   @Name(NAME_DATASET)
   @Macro
@@ -109,6 +115,32 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
           "and discards all rows that do not return TRUE (that is, rows that return FALSE or NULL).")
   private String filter;
 
+  @Name(NAME_ENABLE_QUERYING_VIEWS)
+  @Macro
+  @Nullable
+  @Description("Whether to allow querying views. Since BigQuery views are not materialized by default,"
+      + " querying them may have a performance overhead.")
+  private String enableQueryingViews;
+
+  @Name(NAME_VIEW_MATERIALIZATION_PROJECT)
+  @Macro
+  @Nullable
+  @Description("The project name where the View should be materialized. "
+      + "Defaults to the same project in which the view is located.")
+  private String viewMaterializationProject;
+
+  @Name(NAME_VIEW_MATERIALIZATION_DATASET)
+  @Macro
+  @Nullable
+  @Description("The dataset in the specified project where the view should be materialized. "
+      + "Defaults to the same dataset in which the view is located.")
+  private String viewMaterializationDataset;
+
+  @Name(NAME_STAGING_TABLE_NAME)
+  @Macro
+  @Description("The name to be used for creating the staging table")
+  private String stagingTableName;
+
   public String getDataset() {
     return dataset;
   }
@@ -152,9 +184,45 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
     }
 
     if (!containsMacro(NAME_TABLE)) {
-      BigQueryUtil.validateTable(table, NAME_TABLE, collector);
+      validateTable(collector);
+    }
+
+    if (isEnableQueryingViews()) {
+      validateViewsProperties(collector);
     }
   }
+
+  private void validateTable(FailureCollector collector) {
+    BigQueryUtil.validateTable(table, NAME_TABLE, collector);
+
+    if (canConnect()) {
+      Type definition = getSourceTableType();
+      if (definition != null && definition == Type.VIEW && !isEnableQueryingViews()) {
+        collector.addFailure(
+            String.format("'%s' is a 'View' :", table),
+            "In order to enable query views, please enable 'Enable Querying Views'");
+      }
+    }
+  }
+
+  public Type getSourceTableType() {
+    Table sourceTable =
+        BigQueryUtil.getBigQueryTable(
+            getDatasetProject(), getDataset(), table, getServiceAccountFilePath());
+    return sourceTable != null ? sourceTable.getDefinition().getType() : null;
+  }
+
+  private void validateViewsProperties(FailureCollector collector) {
+
+    if (!containsMacro(NAME_VIEW_MATERIALIZATION_DATASET)) {
+      BigQueryUtil.validateDataset(getViewMaterializationDataset(), NAME_VIEW_MATERIALIZATION_DATASET, collector);
+    }
+
+    if (!containsMacro(NAME_STAGING_TABLE_NAME)) {
+      BigQueryUtil.validateTable(getStagingTableName(), NAME_STAGING_TABLE_NAME, collector);
+    }
+  }
+
 
   /**
    * @return the schema of the dataset
@@ -193,6 +261,30 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
       }
     }
     return filter;
+  }
+
+  public boolean isEnableQueryingViews() {
+    return "true".equalsIgnoreCase(enableQueryingViews);
+  }
+
+  @Nullable
+  public String getViewMaterializationProject() {
+    if (AUTO_DETECT.equals(viewMaterializationProject)) {
+      return getDatasetProject();
+    }
+    return viewMaterializationProject;
+  }
+
+  @Nullable
+  public String getViewMaterializationDataset() {
+    if (AUTO_DETECT.equals(viewMaterializationDataset)) {
+      return getDataset();
+    }
+    return viewMaterializationDataset;
+  }
+
+  public String getStagingTableName() {
+    return stagingTableName;
   }
 
   /**
