@@ -55,7 +55,6 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   public static final String NAME_ENABLE_QUERYING_VIEWS = "enableQueryingViews";
   public static final String NAME_VIEW_MATERIALIZATION_PROJECT = "viewMaterializationProject";
   public static final String NAME_VIEW_MATERIALIZATION_DATASET = "viewMaterializationDataset";
-  public static final String NAME_STAGING_TABLE_NAME = "stagingTableName";
 
   @Name(NAME_DATASET)
   @Macro
@@ -118,8 +117,7 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   @Name(NAME_ENABLE_QUERYING_VIEWS)
   @Macro
   @Nullable
-  @Description("Whether to allow querying views. Since BigQuery views are not materialized by default,"
-      + " querying them may have a performance overhead.")
+  @Description("Whether to allow querying views.")
   private String enableQueryingViews;
 
   @Name(NAME_VIEW_MATERIALIZATION_PROJECT)
@@ -136,10 +134,6 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
       + "Defaults to the same dataset in which the view is located.")
   private String viewMaterializationDataset;
 
-  @Name(NAME_STAGING_TABLE_NAME)
-  @Macro
-  @Description("The name to be used for creating the staging table")
-  private String stagingTableName;
 
   public String getDataset() {
     return dataset;
@@ -187,8 +181,8 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
       validateTable(collector);
     }
 
-    if (isEnableQueryingViews()) {
-      validateViewsProperties(collector);
+    if (isEnableQueryingViews() && !containsMacro(NAME_VIEW_MATERIALIZATION_DATASET)) {
+        BigQueryUtil.validateDataset(getViewMaterializationDataset(), NAME_VIEW_MATERIALIZATION_DATASET, collector);
     }
   }
 
@@ -211,18 +205,6 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
             getDatasetProject(), getDataset(), table, getServiceAccountFilePath());
     return sourceTable != null ? sourceTable.getDefinition().getType() : null;
   }
-
-  private void validateViewsProperties(FailureCollector collector) {
-
-    if (!containsMacro(NAME_VIEW_MATERIALIZATION_DATASET)) {
-      BigQueryUtil.validateDataset(getViewMaterializationDataset(), NAME_VIEW_MATERIALIZATION_DATASET, collector);
-    }
-
-    if (!containsMacro(NAME_STAGING_TABLE_NAME)) {
-      BigQueryUtil.validateTable(getStagingTableName(), NAME_STAGING_TABLE_NAME, collector);
-    }
-  }
-
 
   /**
    * @return the schema of the dataset
@@ -282,11 +264,7 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
     }
     return viewMaterializationDataset;
   }
-
-  public String getStagingTableName() {
-    return stagingTableName;
-  }
-
+  
   /**
    * Returns true if bigquery table can be connected and schema is not a macro.
    */

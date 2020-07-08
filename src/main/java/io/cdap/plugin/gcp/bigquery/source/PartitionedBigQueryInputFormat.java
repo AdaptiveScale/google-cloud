@@ -92,8 +92,6 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     String partitionToDate = configuration.get(BigQueryConstants.CONFIG_PARTITION_TO_DATE, null);
     String filter = configuration.get(BigQueryConstants.CONFIG_FILTER, null);
 
-    String stagingTableName = configuration.get(BigQueryConstants.CONFIG_STAGING_TABLE_NAME);
-
     com.google.cloud.bigquery.Table bigQueryTable =
         BigQueryUtil.getBigQueryTable(inputProjectId, datasetId, tableName, serviceFilePath);
     Type type = Objects.requireNonNull(bigQueryTable).getDefinition().getType();
@@ -114,7 +112,7 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
         .setTableId(tableName);
 
       String location = bigQueryHelper.getTable(sourceTable).getLocation();
-      String temporaryTableName = createTemporaryExportTableName(type, tableName, stagingTableName);
+      String temporaryTableName = String.format("%s_%s", tableName, UUID.randomUUID().toString().replaceAll("-", "_"));
       TableReference exportTableReference = createExportTableReference(type, inputProjectId, datasetId,
           temporaryTableName, configuration);
 
@@ -176,12 +174,6 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     return String.format(queryTemplate, tableName, condition.toString());
   }
 
-  private String createTemporaryExportTableName(Type type, String tableName, String stagingTableName) {
-    if (type == Type.VIEW && !Strings.isNullOrEmpty(stagingTableName)) {
-      return stagingTableName;
-    }
-    return tableName + "_" + UUID.randomUUID().toString().replaceAll("-", "_");
-  }
 
   /**
    * Create {@link TableReference} to export Table or View

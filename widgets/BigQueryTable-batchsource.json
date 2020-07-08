@@ -133,11 +133,6 @@
           "widget-attributes": {
             "default": "auto-detect"
           }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Staging Table Name",
-          "name": "stagingTableName"
         }
       ]
     },
@@ -187,10 +182,6 @@
         {
           "type": "property",
           "name": "viewMaterializationDataset"
-        },
-        {
-          "type": "property",
-          "name": "stagingTableName"
         }
       ]
     }

@@ -38,5 +38,4 @@ public interface BigQueryConstants {
   String CONFIG_JOB_ID = "cdap.bq.sink.job.id";
   String CONFIG_VIEW_MATERIALIZATION_PROJECT = "cdap.bq.source.view.materialization.project";
   String CONFIG_VIEW_MATERIALIZATION_DATASET = "cdap.bq.source.view.materialization.dataset";
-  String CONFIG_STAGING_TABLE_NAME = "cdap.bq.source.view.materialization.staging.table";
 }

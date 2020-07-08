@@ -164,9 +164,6 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     if (config.getViewMaterializationDataset() != null) {
       configuration.set(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_DATASET, config.getViewMaterializationDataset());
     }
-    if (config.getStagingTableName() != null) {
-      configuration.set(BigQueryConstants.CONFIG_STAGING_TABLE_NAME, config.getStagingTableName());
-    }
 
 
     String temporaryGcsPath = String.format("gs://%s/hadoop/input/%s", bucket, uuid);
