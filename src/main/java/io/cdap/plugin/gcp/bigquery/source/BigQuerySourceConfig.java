@@ -117,7 +117,8 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   @Name(NAME_ENABLE_QUERYING_VIEWS)
   @Macro
   @Nullable
-  @Description("Whether to allow querying views. Since BigQuery views are not materialized by default, querying them may have a performance overhead.")
+  @Description("Whether to allow querying views. Since BigQuery views are not materialized by default,"
+      + " querying them may have a performance overhead.")
   private String enableQueryingViews;
 
   @Name(NAME_VIEW_MATERIALIZATION_PROJECT)
