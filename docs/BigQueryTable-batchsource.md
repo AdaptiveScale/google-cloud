@@ -55,7 +55,8 @@ It will be automatically created if it does not exist, but will not be automatic
 Temporary data will be deleted after it has been read. If it is not provided, a unique bucket will be
 created and then deleted after the run finishes.
 
-**Enable Querying Views**: Whether to allow querying views.
+**Enable Querying Views**: Whether to allow querying views. Since BigQuery views are not materialized 
+by default, querying them may have a performance overhead.
 
 **View Materialization Project**: The project name where the View should be materialized. Defaults 
 to the same project in which the view is located.

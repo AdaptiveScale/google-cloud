@@ -121,18 +121,12 @@
         {
           "widget-type": "textbox",
           "label": "View Materialization Project",
-          "name": "viewMaterializationProject",
-          "widget-attributes" : {
-            "default": "auto-detect"
-          }
+          "name": "viewMaterializationProject"
         },
         {
           "widget-type": "textbox",
           "label": "View Materialization Dataset",
-          "name": "viewMaterializationDataset",
-          "widget-attributes": {
-            "default": "auto-detect"
-          }
+          "name": "viewMaterializationDataset"
         }
       ]
     },

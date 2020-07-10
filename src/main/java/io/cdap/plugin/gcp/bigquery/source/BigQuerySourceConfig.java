@@ -117,7 +117,7 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   @Name(NAME_ENABLE_QUERYING_VIEWS)
   @Macro
   @Nullable
-  @Description("Whether to allow querying views.")
+  @Description("Whether to allow querying views. Since BigQuery views are not materialized by default, querying them may have a performance overhead.")
   private String enableQueryingViews;
 
   @Name(NAME_VIEW_MATERIALIZATION_PROJECT)
@@ -251,7 +251,7 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
 
   @Nullable
   public String getViewMaterializationProject() {
-    if (AUTO_DETECT.equals(viewMaterializationProject)) {
+    if (Strings.isNullOrEmpty(viewMaterializationProject)) {
       return getDatasetProject();
     }
     return viewMaterializationProject;
@@ -259,7 +259,7 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
 
   @Nullable
   public String getViewMaterializationDataset() {
-    if (AUTO_DETECT.equals(viewMaterializationDataset)) {
+    if (Strings.isNullOrEmpty(viewMaterializationDataset)) {
       return getDataset();
     }
     return viewMaterializationDataset;
