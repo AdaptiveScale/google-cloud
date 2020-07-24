@@ -76,7 +76,8 @@ public final class GCSArgumentSetterConfig extends GCPConfig {
     if (getServiceAccountType() == ServiceAccountType.JSON
         && !containsMacro(NAME_SERVICE_ACCOUNT_JSON)
         && Strings.isNullOrEmpty(getServiceAccountJSON())) {
-      collector.addFailure("Required property 'Service Account JSON' has no value.", "")
+      collector
+          .addFailure("Required property 'Service Account JSON' has no value.", "")
           .withConfigProperty(NAME_SERVICE_ACCOUNT_JSON);
     }
   }
@@ -115,9 +116,7 @@ public final class GCSArgumentSetterConfig extends GCPConfig {
     return serviceAccountJSON;
   }
 
-  /**
-   *  The type of service account.
-   * */
+  /** The type of service account. */
   public enum ServiceAccountType {
     FILE_PATH,
     JSON;
