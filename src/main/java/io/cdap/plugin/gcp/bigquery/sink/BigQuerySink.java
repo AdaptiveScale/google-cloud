@@ -17,6 +17,10 @@ package io.cdap.plugin.gcp.bigquery.sink;
 
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.Job;
+import com.google.cloud.bigquery.JobConfiguration;
+import com.google.cloud.bigquery.JobId;
+import com.google.cloud.bigquery.JobStatistics;
 import com.google.cloud.bigquery.Table;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
@@ -37,11 +41,14 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -60,6 +67,10 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   public static final String NAME = "BigQueryTable";
 
   private final BigQuerySinkConfig config;
+
+  private final String jobId = UUID.randomUUID().toString();
+
+  private static final Logger LOG = LoggerFactory.getLogger(BigQuerySink.class);
 
   public BigQuerySink(BigQuerySinkConfig config) {
     this.config = config;
@@ -98,10 +109,63 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   protected void prepareRunInternal(BatchSinkContext context, BigQuery bigQuery, String bucket) throws IOException {
     FailureCollector collector = context.getFailureCollector();
     Schema configSchema = config.getSchema(collector);
-    configureTable();
-    configureBigQuerySink();
     Schema schema = configSchema == null ? context.getInputSchema() : configSchema;
+    configureTable(schema);
+    configureBigQuerySink();
     initOutput(context, bigQuery, config.getReferenceName(), config.getTable(), schema, bucket, collector);
+  }
+
+  @Override
+  public void onRunFinish(boolean succeeded, BatchSinkContext context) {
+    super.onRunFinish(succeeded, context);
+
+    try {
+      recordMetric(succeeded, context);
+    } catch (Exception exception) {
+      LOG.warn("Exception while trying to emit metric. No metric will be emitted for the number of affected rows.",
+               exception);
+    }
+  }
+
+  private void recordMetric(boolean succeeded, BatchSinkContext context) {
+    if (!succeeded) {
+      return;
+    }
+    Job queryJob = bigQuery.getJob(getJobId());
+    if (queryJob == null) {
+      LOG.warn("Unable to find BigQuery job. No metric will be emitted for the number of affected rows.");
+      return;
+    }
+    long totalRows = getTotalRows(queryJob);
+    LOG.info("Job {} affected {} rows", queryJob.getJobId(), totalRows);
+    //work around since StageMetrics count() only takes int as of now
+    int cap = 10000; // so the loop will not cause significant delays
+    long count = totalRows / Integer.MAX_VALUE;
+    if (count > cap) {
+      LOG.warn("Total record count is too high! Metric for the number of affected rows may not be updated correctly");
+    }
+    count = count < cap ? count : cap;
+    for (int i = 0; i <= count && totalRows > 0; i++) {
+      int rowCount = totalRows < Integer.MAX_VALUE ? (int) totalRows : Integer.MAX_VALUE;
+      context.getMetrics().count(RECORDS_UPDATED_METRIC, rowCount);
+      totalRows -= rowCount;
+    }
+  }
+
+  private JobId getJobId() {
+    String location = bigQuery.getDataset(getConfig().getDataset()).getLocation();
+    return JobId.newBuilder().setLocation(location).setJob(jobId).build();
+  }
+
+  private long getTotalRows(Job queryJob) {
+    JobConfiguration.Type type = queryJob.getConfiguration().getType();
+    if (type == JobConfiguration.Type.LOAD) {
+      return ((JobStatistics.LoadStatistics) queryJob.getStatistics()).getOutputRows();
+    } else if (type == JobConfiguration.Type.QUERY) {
+      return ((JobStatistics.QueryStatistics) queryJob.getStatistics()).getNumDmlAffectedRows();
+    }
+    LOG.warn("Unable to identify BigQuery job type. No metric will be emitted for the number of affected rows.");
+    return 0;
   }
 
   @Override
@@ -131,8 +195,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
    * Sets addition configuration for the AbstractBigQuerySink's Hadoop configuration
    */
   private void configureBigQuerySink() {
-    baseConfiguration.setBoolean(BigQueryConstants.CONFIG_CREATE_PARTITIONED_TABLE,
-                                 getConfig().shouldCreatePartitionedTable());
+    baseConfiguration.set(BigQueryConstants.CONFIG_JOB_ID, jobId);
     if (config.getPartitionByField() != null) {
       baseConfiguration.set(BigQueryConstants.CONFIG_PARTITION_BY_FIELD, getConfig().getPartitionByField());
     }
@@ -151,22 +214,39 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     if (config.getPartitionFilter() != null) {
       baseConfiguration.set(BigQueryConstants.CONFIG_PARTITION_FILTER, getConfig().getPartitionFilter());
     }
+
+    PartitionType partitioningType = getConfig().getPartitioningType();
+    baseConfiguration.setEnum(BigQueryConstants.CONFIG_PARTITION_TYPE, partitioningType);
+
+    if (config.getRangeStart() != null) {
+      baseConfiguration.setLong(BigQueryConstants.CONFIG_PARTITION_INTEGER_RANGE_START, config.getRangeStart());
+    }
+    if (config.getRangeEnd() != null) {
+      baseConfiguration.setLong(BigQueryConstants.CONFIG_PARTITION_INTEGER_RANGE_END, config.getRangeEnd());
+    }
+    if (config.getRangeInterval() != null) {
+      baseConfiguration.setLong(BigQueryConstants.CONFIG_PARTITION_INTEGER_RANGE_INTERVAL, config.getRangeInterval());
+    }
   }
 
   /**
    * Sets the output table for the AbstractBigQuerySink's Hadoop configuration
    */
-  private void configureTable() {
+  private void configureTable(Schema schema) {
     AbstractBigQuerySinkConfig config = getConfig();
     Table table = BigQueryUtil.getBigQueryTable(config.getProject(), config.getDataset(),
                                                 config.getTable(),
                                                 config.getServiceAccountFilePath());
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, table != null);
+    List<String> tableFieldsNames;
     if (table != null) {
-      List<String> tableFieldsNames = Objects.requireNonNull(table.getDefinition().getSchema()).getFields().stream()
+       tableFieldsNames = Objects.requireNonNull(table.getDefinition().getSchema()).getFields().stream()
         .map(Field::getName).collect(Collectors.toList());
-      baseConfiguration.set(BigQueryConstants.CONFIG_TABLE_FIELDS, String.join(",", tableFieldsNames));
+    } else {
+      tableFieldsNames = schema.getFields().stream()
+        .map(Schema.Field::getName).collect(Collectors.toList());
     }
+    baseConfiguration.set(BigQueryConstants.CONFIG_TABLE_FIELDS, String.join(",", tableFieldsNames));
   }
 
   private void validateConfiguredSchema(Schema schema, FailureCollector collector) {
