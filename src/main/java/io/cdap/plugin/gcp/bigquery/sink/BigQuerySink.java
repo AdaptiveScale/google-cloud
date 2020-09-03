@@ -196,8 +196,6 @@ public final class BigQuerySink extends AbstractBigQuerySink {
    */
   private void configureBigQuerySink() {
     baseConfiguration.set(BigQueryConstants.CONFIG_JOB_ID, jobId);
-    baseConfiguration.setBoolean(BigQueryConstants.CONFIG_CREATE_PARTITIONED_TABLE,
-                                 getConfig().shouldCreatePartitionedTable());
     if (config.getPartitionByField() != null) {
       baseConfiguration.set(BigQueryConstants.CONFIG_PARTITION_BY_FIELD, getConfig().getPartitionByField());
     }
