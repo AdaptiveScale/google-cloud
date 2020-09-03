@@ -38,6 +38,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
@@ -73,7 +74,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.math.BigInteger;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -177,20 +177,41 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       LOG.debug("Partition filter: '{}'", partitionFilter);
       boolean tableExists = conf.getBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, false);
 
-      String jobIdString = conf.get(BigQueryConstants.CONFIG_JOB_ID);
-      JobId jobId = JobId.of(jobIdString);
       try {
         importFromGcs(destProjectId, destTable, destSchema.orElse(null), kmsKeyName, outputFileFormat,
                       writeDisposition, sourceUris, partitionType, range, partitionByField,
-                      requirePartitionFilter, clusteringOrderList, tableExists, jobIdString);
+                      requirePartitionFilter, clusteringOrderList, tableExists, getJobIdForImportGCS(conf));
         if (temporaryTableReference != null) {
-          operationAction(destTable, kmsKeyName, jobId);
+          operationAction(destTable, kmsKeyName, getJobIdForUpdateUpsert(conf));
         }
-      } catch (InterruptedException e) {
-        throw new IOException("Failed to import GCS into BigQuery", e);
+      } catch (Exception e) {
+        throw new IOException("Failed to import GCS into BigQuery. ", e);
       }
 
       cleanup(jobContext);
+    }
+
+    private String getJobIdForImportGCS(Configuration conf) {
+      //If the operation is not INSERT then this is a write to a temporary table. No need to use saved JobId here.
+      // Return a random UUID
+      if (!Operation.INSERT.equals(operation)) {
+        return UUID.randomUUID().toString();
+      }
+      //See if plugin specified a Job ID to be used.
+      String savedJobId = conf.get(BigQueryConstants.CONFIG_JOB_ID);
+      if (savedJobId == null || savedJobId.isEmpty()) {
+        return UUID.randomUUID().toString();
+      }
+      return savedJobId;
+    }
+
+    private JobId getJobIdForUpdateUpsert(Configuration conf) {
+      //See if plugin specified a Job ID to be used.
+      String savedJobId = conf.get(BigQueryConstants.CONFIG_JOB_ID);
+      if (savedJobId == null || savedJobId.isEmpty()) {
+        return JobId.of(UUID.randomUUID().toString());
+      }
+      return JobId.of(savedJobId);
     }
 
     @Override
@@ -256,7 +277,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       }
 
       temporaryTableReference = null;
-      if (tableExists && !isTableEmpty(tableRef) && !Operation.INSERT.equals(operation)) {
+      if (!Operation.INSERT.equals(operation)) {
         String temporaryTableName = tableRef.getTableId() + "_"
           + UUID.randomUUID().toString().replaceAll("-", "_");
         temporaryTableReference = new TableReference()
@@ -264,6 +285,17 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
           .setProjectId(tableRef.getProjectId())
           .setTableId(temporaryTableName);
         loadConfig.setDestinationTable(temporaryTableReference);
+
+        if (!tableExists) {
+          if (Operation.UPSERT.equals(operation)) {
+            // For upsert operation, if the destination table does not exist, create it
+            Table table = new Table();
+            table.setTableReference(tableRef);
+            table.setSchema(schema);
+            bigQueryHelper.getRawBigquery().tables().insert(tableRef.getProjectId(), tableRef.getDatasetId(), table)
+              .execute();
+          }
+        }
       } else {
         loadConfig.setDestinationTable(tableRef);
 
@@ -299,7 +331,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
 
       JobReference jobReference =
         new JobReference().setProjectId(projectId)
-          .setJobId(temporaryTableReference == null ? jobId : UUID.randomUUID().toString())
+          .setJobId(jobId)
           .setLocation(dataset.getLocation());
       Job job = new Job();
       job.setConfiguration(config);
@@ -424,8 +456,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       return Optional.empty();
     }
 
-    private void operationAction(TableReference tableRef, @Nullable String cmekKey, JobId jobId)
-      throws InterruptedException {
+    private void operationAction(TableReference tableRef, @Nullable String cmekKey, JobId jobId) throws Exception {
       if (allowSchemaRelaxation) {
         updateTableSchema(tableRef);
       }
@@ -440,11 +471,21 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
             com.google.cloud.bigquery.EncryptionConfiguration.newBuilder().setKmsKeyName(cmekKey).build())
           .build();
 
-
-      com.google.cloud.bigquery.Job queryJob = bigquery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
-
-      // Wait for the query to complete.
-      queryJob.waitFor();
+      try {
+        com.google.cloud.bigquery.Job queryJob = bigquery.create(JobInfo.newBuilder(queryConfig)
+                                                                   .setJobId(jobId).build());
+        // Wait for the query to complete.
+        queryJob.waitFor();
+      } catch (BigQueryException e) {
+        if (Operation.UPDATE.equals(operation) && !bigQueryHelper.tableExists(tableRef)) {
+          // ignore the exception. This is because we do not want to fail the pipeline as per below discussion
+          // https://github.com/data-integrations/google-cloud/pull/290#discussion_r472405882
+          LOG.warn("BigQuery Table {} does not exist. The operation update will not write any records to the table."
+            , String.format("%s.%s.%s", tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()));
+          return;
+        }
+        throw e;
+      }
     }
 
     private void updateTableSchema(TableReference tableRef) {
@@ -508,12 +549,6 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       JsonParser parser = JacksonFactory.getDefaultInstance().createJsonParser(fieldsJson);
       parser.parseArrayAndClose(fields, TableFieldSchema.class);
       return new TableSchema().setFields(fields);
-    }
-
-    private boolean isTableEmpty(TableReference tableRef) throws IOException {
-      Table table = bigQueryHelper.getTable(tableRef);
-      return table.getNumRows().compareTo(BigInteger.ZERO) <= 0 && table.getNumBytes() == 0
-        && table.getNumLongTermBytes() == 0;
     }
 
     @Override

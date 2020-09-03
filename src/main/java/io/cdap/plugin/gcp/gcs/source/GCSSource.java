@@ -1,5 +1,5 @@
 /*
- * Copyright © 2015 Cask Data, Inc.
+ * Copyright © 2015-2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -199,7 +199,8 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
         try {
           GCSPath.from(path);
         } catch (IllegalArgumentException e) {
-          collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_PATH).withStacktrace(e.getStackTrace());
+          collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_PATH)
+            .withStacktrace(e.getStackTrace());
         }
       }
       if (!containsMacro(NAME_FILE_SYSTEM_PROPERTIES)) {
