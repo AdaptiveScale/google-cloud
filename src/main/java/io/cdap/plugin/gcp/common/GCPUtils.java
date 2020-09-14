@@ -28,9 +28,11 @@ import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Map;
 import javax.annotation.Nullable;
 
@@ -47,6 +49,15 @@ public class GCPUtils {
     try (FileInputStream serviceAccountStream = new FileInputStream(credentialsPath)) {
       return ServiceAccountCredentials.fromStream(serviceAccountStream);
     }
+  }
+
+  public static ServiceAccountCredentials loadServiceAccountCredentials(String content, boolean isJson)
+    throws IOException {
+    if (!isJson) {
+      return loadServiceAccountCredentials(content);
+    }
+    InputStream jsonInputStream = new ByteArrayInputStream(content.getBytes());
+    return ServiceAccountCredentials.fromStream(jsonInputStream);
   }
 
   public static Map<String, String> getFileSystemProperties(GCPConfig config, String path,
