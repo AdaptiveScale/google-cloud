@@ -16,7 +16,7 @@
 
 package io.cdap.plugin.gcp.gcs.actions;
 
-import com.google.auth.Credentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
@@ -38,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -67,13 +68,28 @@ public final class GCSBucketCreate extends Action {
 
     Configuration configuration = new Configuration();
 
-    String serviceAccountFilePath = config.getServiceAccountFilePath();
-    Credentials credentials = serviceAccountFilePath == null ?
-                                null : GCPUtils.loadServiceAccountCredentials(serviceAccountFilePath);
-
-    if (serviceAccountFilePath != null) {
-      configuration.set("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
+    Boolean isServiceAccountJson = config.isServiceAccountJson();
+    if (isServiceAccountJson == null) {
+      context.getFailureCollector().addFailure("Service account type is undefined.",
+                                               "Must be `File Path` or `JSON`");
+      context.getFailureCollector().getOrThrowException();
+      return;
     }
+    String serviceAccount = config.getServiceAccount();
+    ServiceAccountCredentials credentials = serviceAccount == null ?
+                                null : GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountJson);
+
+    if (serviceAccount != null) {
+      if (!isServiceAccountJson) {
+        configuration.set("google.cloud.auth.service.account.json.keyfile", serviceAccount);
+      } else {
+        configuration.set("google.cloud.auth.service.account.email", credentials.getClientEmail());
+        configuration.set("google.cloud.auth.service.account.private.key.id", credentials.getPrivateKeyId());
+        configuration.set("google.cloud.auth.service.account.private.key",
+                          new String(credentials.getPrivateKey().getEncoded(), StandardCharsets.UTF_8));
+      }
+    }
+
     configuration.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
     configuration.set("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
     // validate project id availability
