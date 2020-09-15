@@ -301,6 +301,16 @@ public class StorageClient {
     return new StorageClient(storage);
   }
 
+  public static StorageClient create(String project, @Nullable String serviceAccountPath, boolean isJson)
+    throws IOException {
+    StorageOptions.Builder builder = StorageOptions.newBuilder().setProjectId(project);
+    if (serviceAccountPath != null) {
+      builder.setCredentials(GCPUtils.loadServiceAccountCredentials(serviceAccountPath, isJson));
+    }
+    Storage storage = builder.build().getService();
+    return new StorageClient(storage);
+  }
+
   /**
    * Represents a blob to be copied or moved.
    */

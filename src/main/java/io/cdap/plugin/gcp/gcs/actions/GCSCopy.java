@@ -48,7 +48,8 @@ public class GCSCopy extends Action {
   public void run(ActionContext context) throws IOException {
     config.validate(context.getFailureCollector());
 
-    StorageClient storageClient = StorageClient.create(config.getProject(), config.getServiceAccountFilePath());
+    StorageClient storageClient = StorageClient.create(config.getProject(), config.getServiceAccount(),
+                                                       config.isServiceAccountJson());
     //noinspection ConstantConditions
     storageClient.copy(config.getSourcePath(), config.getDestPath(), config.recursive, config.shouldOverwrite());
   }
