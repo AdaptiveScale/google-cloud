@@ -80,18 +80,6 @@ public class GCPConfig extends PluginConfig {
     return serviceFilePath;
   }
 
-  public String getNameServiceAccountType() {
-    if (containsMacro(NAME_SERVICE_ACCOUNT_TYPE) || Strings.isNullOrEmpty(serviceAccountType)) {
-      return null;
-    }
-    return serviceAccountType;
-  }
-
-  public Boolean isServiceAccountJson() {
-    return getNameServiceAccountType() == null ?
-      null : getNameServiceAccountType().equals(SERVICE_ACCOUNT_TYPE_JSON);
-  }
-
   @Nullable
   public String getServiceAccountJson() {
     if (containsMacro(NAME_SERVICE_ACCOUNT_JSON) || Strings.isNullOrEmpty(serviceJson)) {
@@ -100,13 +88,25 @@ public class GCPConfig extends PluginConfig {
     return serviceJson;
   }
 
+  public String getServiceAccountType() {
+    if (containsMacro(NAME_SERVICE_ACCOUNT_TYPE) || Strings.isNullOrEmpty(serviceAccountType)) {
+      return null;
+    }
+    return serviceAccountType;
+  }
+
+  public Boolean isServiceAccountJson() {
+    return getServiceAccountType() == null ?
+      null : getServiceAccountType().equals(SERVICE_ACCOUNT_TYPE_JSON);
+  }
+
   @Nullable
   public String getServiceAccount() {
     Boolean serviceAccountJson = isServiceAccountJson();
     if (serviceAccountJson == null) {
       return null;
     }
-    return serviceAccountJson ? serviceJson : serviceFilePath;
+    return serviceAccountJson ? getServiceAccountJson() : getServiceAccountFilePath();
   }
 
   /**
@@ -117,7 +117,7 @@ public class GCPConfig extends PluginConfig {
    * @return true if the service account is set to auto-detect but it can't be fetched from the environment.
    */
   public boolean autoServiceAccountUnavailable() {
-    if (getServiceAccountFilePath() == null && SERVICE_ACCOUNT_TYPE_FILE_PATH.equals(getNameServiceAccountType())) {
+    if (getServiceAccountFilePath() == null && SERVICE_ACCOUNT_TYPE_FILE_PATH.equals(getServiceAccountType())) {
       try {
         ServiceAccountCredentials.getApplicationDefault();
       } catch (IOException e) {
