@@ -99,8 +99,8 @@ public final class BigQueryExecute extends Action {
     JobId jobId = JobId.newBuilder().setRandomJob().setLocation(config.getLocation()).build();
 
     // API request - starts the query.
-    Credentials credentials = config.getServiceAccountFilePath() == null ?
-                                null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccountFilePath());
+    Credentials credentials = config.getServiceAccount() == null ?
+      null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(), config.isServiceAccountJson());
     BigQuery bigQuery = GCPUtils.getBigQuery(config.getProject(), credentials);
     Job queryJob = bigQuery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
 
