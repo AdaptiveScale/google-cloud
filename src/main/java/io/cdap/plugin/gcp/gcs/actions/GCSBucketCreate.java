@@ -38,10 +38,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -68,8 +68,8 @@ public final class GCSBucketCreate extends Action {
 
     Configuration configuration = new Configuration();
 
-    Boolean isServiceAccountJson = config.isServiceAccountJson();
-    if (isServiceAccountJson == null) {
+    Boolean isServiceAccountFilePath = config.isServiceAccountFilePath();
+    if (isServiceAccountFilePath == null) {
       context.getFailureCollector().addFailure("Service account type is undefined.",
                                                "Must be `File Path` or `JSON`");
       context.getFailureCollector().getOrThrowException();
@@ -77,17 +77,12 @@ public final class GCSBucketCreate extends Action {
     }
     String serviceAccount = config.getServiceAccount();
     ServiceAccountCredentials credentials = serviceAccount == null ?
-                                null : GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountJson);
+                                null : GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountFilePath);
 
     if (serviceAccount != null) {
-      if (!isServiceAccountJson) {
-        configuration.set("google.cloud.auth.service.account.json.keyfile", serviceAccount);
-      } else {
-        configuration.set("google.cloud.auth.service.account.email", credentials.getClientEmail());
-        configuration.set("google.cloud.auth.service.account.private.key.id", credentials.getPrivateKeyId());
-        configuration.set("google.cloud.auth.service.account.private.key",
-                          new String(credentials.getPrivateKey().getEncoded(), StandardCharsets.UTF_8));
-      }
+      Map<String, String> map = GCPUtils.generateAuthProperties(serviceAccount, isServiceAccountFilePath,
+                                                                GCPUtils.CLOUD_JSON_KEYFILE_PREFIX);
+      map.forEach(configuration::set);
     }
 
     configuration.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
