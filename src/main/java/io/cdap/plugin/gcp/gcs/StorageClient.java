@@ -301,7 +301,7 @@ public class StorageClient {
     return new StorageClient(storage);
   }
 
-  public static StorageClient create(String project, @Nullable String serviceAccountPath, boolean isJson)
+  public static StorageClient create(String project, @Nullable String serviceAccountPath, Boolean isJson)
     throws IOException {
     StorageOptions.Builder builder = StorageOptions.newBuilder().setProjectId(project);
     if (serviceAccountPath != null) {
