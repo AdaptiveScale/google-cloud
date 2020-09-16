@@ -301,11 +301,11 @@ public class StorageClient {
     return new StorageClient(storage);
   }
 
-  public static StorageClient create(String project, @Nullable String serviceAccountPath, Boolean isJson)
-    throws IOException {
+  public static StorageClient create(String project, @Nullable String serviceAccountPath,
+                                     Boolean isServiceAccountFilePath) throws IOException {
     StorageOptions.Builder builder = StorageOptions.newBuilder().setProjectId(project);
     if (serviceAccountPath != null) {
-      builder.setCredentials(GCPUtils.loadServiceAccountCredentials(serviceAccountPath, isJson));
+      builder.setCredentials(GCPUtils.loadServiceAccountCredentials(serviceAccountPath, isServiceAccountFilePath));
     }
     Storage storage = builder.build().getService();
     return new StorageClient(storage);

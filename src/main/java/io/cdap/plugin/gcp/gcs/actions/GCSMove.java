@@ -48,8 +48,15 @@ public class GCSMove extends Action {
   public void run(ActionContext context) throws IOException {
     config.validate(context.getFailureCollector());
 
+    Boolean isServiceAccountFilePath = config.isServiceAccountFilePath();
+    if (isServiceAccountFilePath == null) {
+      context.getFailureCollector().addFailure("Service account type is undefined.",
+                                               "Must be `File Path` or `JSON`");
+      context.getFailureCollector().getOrThrowException();
+      return;
+    }
     StorageClient storageClient = StorageClient.create(config.getProject(), config.getServiceAccount(),
-                                                       config.isServiceAccountJson());
+                                                       isServiceAccountFilePath);
     //noinspection ConstantConditions
     storageClient.move(config.getSourcePath(), config.getDestPath(), config.recursive, config.shouldOverwrite());
   }
