@@ -100,6 +100,11 @@ public class GCPConfig extends PluginConfig {
       null : getServiceAccountType().equals(SERVICE_ACCOUNT_TYPE_JSON);
   }
 
+  public Boolean isServiceAccountFilePath() {
+    return getServiceAccountType() == null ?
+      null : getServiceAccountType().equals(SERVICE_ACCOUNT_TYPE_FILE_PATH);
+  }
+
   @Nullable
   public String getServiceAccount() {
     Boolean serviceAccountJson = isServiceAccountJson();
