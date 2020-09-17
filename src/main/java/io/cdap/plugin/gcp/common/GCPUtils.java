@@ -51,7 +51,11 @@ public class GCPUtils {
   public static final String CLOUD_ACCOUNT_EMAIL_SUFFIX = "auth.service.account.email";
   public static final String CLOUD_ACCOUNT_PRIVATE_KEY_ID_SUFFIX = "auth.service.account.private.key.id";
   public static final String CLOUD_ACCOUNT_KEY_SUFFIX = "auth.service.account.private.key";
+  public static final String CLOUD_ACCOUNT_JSON_SUFFIX = "auth.service.account.json";
   public static final String PRIVATE_KEY_WRAP = "-----BEGIN PRIVATE KEY-----\\n%s\\n-----END PRIVATE KEY-----\\n";
+  public static final String SERVICE_ACCOUNT_TYPE = "cdap.gcs.auth.service.account.type";
+  public static final String SERVICE_ACCOUNT_TYPE_FILE_PATH = "filePath";
+  public static final String SERVICE_ACCOUNT_TYPE_JSON = "json";
 
   public static ServiceAccountCredentials loadServiceAccountCredentials(String path) throws IOException {
     File credentialsPath = new File(path);
@@ -80,6 +84,9 @@ public class GCPUtils {
                                                            String... keyPrefix) throws IOException {
     Map<String, String> properties = new HashMap<>();
     String privateKeyData = null;
+    properties.put(SERVICE_ACCOUNT_TYPE, isServiceAccountFilePath ? SERVICE_ACCOUNT_TYPE_FILE_PATH
+      : SERVICE_ACCOUNT_TYPE_JSON);
+
     for (String prefix : keyPrefix) {
       if (isServiceAccountFilePath) {
         properties.put(String.format("%s.%s", prefix, CLOUD_JSON_KEYFILE_SUFFIX), serviceAccount);
@@ -94,6 +101,7 @@ public class GCPUtils {
         privateKeyData = extractPrivateKey(credentials);
       }
       properties.put(String.format("%s.%s", prefix, CLOUD_ACCOUNT_KEY_SUFFIX), privateKeyData);
+      properties.put(String.format("%s.%s", prefix, CLOUD_ACCOUNT_JSON_SUFFIX), serviceAccount);
     }
     return properties;
   }
