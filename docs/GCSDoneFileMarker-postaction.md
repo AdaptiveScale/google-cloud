@@ -33,9 +33,15 @@ If set to *failure*, the action will get executed and the marker file will get c
 **Project ID**: Google Cloud Project ID, which uniquely identifies a project.
 It can be found on the Dashboard in the Google Cloud Platform Console.
 
+<<<<<<< HEAD
 **Path** Google Cloud Storage path to the marker file. This takes the format `gs://<bucket>/file-marker-name`. 
 For example `gs://billing-data/__SUCCESS`. The marker file will get created only if there is no previous marker file
  in that path. Otherwise, creating a new marker file will be skipped. 
+=======
+**Path** Google Cloud Storage path to the marker file. This takes the format `gs://<bucket>/directory/marker-file-name`. 
+For example `gs://billing-data/2021-01-21/__SUCCESS`. The marker file will get created only if there is no previous
+marker file in that path. Otherwise, creating a new marker file will be skipped. 
+>>>>>>> Implement GCS File Marker
 
 * **Service Account**  Service account key used for authorization
 

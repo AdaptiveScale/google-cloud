@@ -20,6 +20,7 @@ import com.google.auth.Credentials;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
@@ -60,21 +61,36 @@ public class GCSDoneFileMarker extends PostAction {
    * @throws IOException
    */
   private static void createFileMarker(String project, GCSPath path, String serviceAccount,
-                                       boolean isServiceAccountFilePath,
-                                       BatchActionContext context) throws IOException {
+                                       Boolean isServiceAccountFilePath,
+                                       BatchActionContext context) {
 
     String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
-    Credentials credentials = serviceAccount == null ?
-      null : GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountFilePath);
+    Credentials credentials = null;
+    if (serviceAccount != null) {
+      try {
+        credentials = GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountFilePath);
+      } catch (IOException e) {
+        throw new RuntimeException(String.format("Failed to load credentials from path %s.", serviceAccount), e);
+      }
+    }
+
     Storage storage = GCPUtils.getStorage(project, credentials);
 
     if (storage.get(path.getBucket()) == null) {
-      GCPUtils.createBucket(storage, path.getBucket(), null, cmekKey);
+      try {
+        GCPUtils.createBucket(storage, path.getBucket(), null, cmekKey);
+      } catch (StorageException e) {
+        throw new RuntimeException(String.format("Failed to create bucket %s.", path.getBucket()), e);
+      }
     }
 
-    BlobId fileMarkerId = BlobId.of(path.getBucket(), path.getName());
-    BlobInfo fileMarkerInfo = BlobInfo.newBuilder(fileMarkerId).build();
-    storage.create(fileMarkerInfo, "".getBytes(StandardCharsets.UTF_8));
+    BlobId markerFileId = BlobId.of(path.getBucket(), path.getName());
+    BlobInfo markerFileInfo = BlobInfo.newBuilder(markerFileId).build();
+    try {
+    storage.create(markerFileInfo, "".getBytes(StandardCharsets.UTF_8));
+    } catch (StorageException e) {
+      throw new RuntimeException(String.format("Failed to create the marker file at %s.", path.getUri()), e);
+    }
   }
 
   @Override
@@ -88,9 +104,9 @@ public class GCSDoneFileMarker extends PostAction {
     if (!config.shouldRun(batchActionContext)) {
       return;
     }
-    GCSPath fileMarkerPath = config.getPath();
+    GCSPath markerFilePath = config.getPath();
     String serviceAccount = config.getServiceAccount();
-    createFileMarker(config.getProject(), fileMarkerPath, serviceAccount, config.isServiceAccountFilePath(),
+    createFileMarker(config.getProject(), markerFilePath, serviceAccount, config.isServiceAccountFilePath(),
                      batchActionContext);
   }
 
